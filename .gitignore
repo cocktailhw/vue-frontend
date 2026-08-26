@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env
+.env.local
+.env.*.local
+
+# Real nginx upstream (cluster DNS 등) — never commit
+nginx.conf
+nginx.conf.local
