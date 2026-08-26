@@ -11,10 +11,11 @@ const { notices, searchQuery } = storeToRefs(portalStore)
 const isLoading = ref(false)
 const activeTab = ref('all')
 const currentPage = ref(1)
-const pageSize = 8
+const pageSize = 5
 
 const modalOpen = ref(false)
 const selectedNotice = ref(null)
+const modalList = ref([])
 
 const tabs = [
   { id: 'all', label: '전체' },
@@ -33,9 +34,12 @@ const quickLinks = [
       category: '공지사항',
       department: '민원여권과',
       date: '2026-08-10',
-      viewCount: 0,
-      content: '정부24 또는 무인발급기에서 주민등록표 등·초본을 발급할 수 있습니다. 방문 발급 시 신분증을 지참해 주세요.',
-      attachment: '주민등록_발급안내.pdf',
+      viewCount: 120,
+      contact: '1600-0101',
+      content:
+        '시민 여러분께 알려드립니다.\n\n주민등록표 등·초본은 정부24 또는 무인발급기에서 발급할 수 있습니다. 방문 발급 시 신분증을 지참해 주시기 바랍니다.\n\n붙임: 발급 안내문 1부. 끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
   {
@@ -47,9 +51,12 @@ const quickLinks = [
       category: '공지사항',
       department: '세무과',
       date: '2026-08-20',
-      viewCount: 0,
-      content: '지방세는 위택스(Wetax) 및 은행 앱에서 납부할 수 있습니다. 납부기한 경과 시 가산금이 부과될 수 있습니다.',
-      attachment: '지방세_납부안내.pdf',
+      viewCount: 88,
+      contact: '1600-0102',
+      content:
+        '시민 여러분께 알려드립니다.\n\n지방세는 위택스(Wetax) 및 금융기관 앱에서 납부할 수 있습니다. 납부기한 경과 시 가산금이 부과될 수 있으니 기한 내 납부하여 주시기 바랍니다.\n\n끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
   {
@@ -61,9 +68,12 @@ const quickLinks = [
       category: '공지사항',
       department: '건축과',
       date: '2026-08-05',
-      viewCount: 0,
-      content: '건축물대장은 세움터 또는 민원실에서 열람·발급할 수 있습니다.',
-      attachment: null,
+      viewCount: 64,
+      contact: '1600-0103',
+      content:
+        '건축물대장은 세움터 또는 민원실에서 열람·발급할 수 있습니다. 문의는 건축과로 연락해 주세요.\n\n끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
   {
@@ -75,9 +85,12 @@ const quickLinks = [
       category: '공지사항',
       department: '문화체육과',
       date: '2026-08-01',
-      viewCount: 0,
-      content: '시 소유 공공시설 대관은 온라인 예약 또는 담당 부서 문의 후 신청할 수 있습니다.',
-      attachment: '공공시설_대관안내.pdf',
+      viewCount: 51,
+      contact: '1600-0104',
+      content:
+        '시 소유 공공시설 대관은 사전 신청이 필요합니다. 상세 일정과 이용료는 담당 부서로 문의해 주시기 바랍니다.\n\n끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
   {
@@ -89,9 +102,12 @@ const quickLinks = [
       category: '공지사항',
       department: '민원여권과',
       date: '2026-07-30',
-      viewCount: 0,
-      content: '이사 후 14일 이내 전입신고를 해야 합니다. 정부24 또는 행정복지센터에서 신청 가능합니다.',
-      attachment: null,
+      viewCount: 77,
+      contact: '1600-0101',
+      content:
+        '이사 후 14일 이내 전입신고를 하여야 합니다. 정부24 또는 관할 행정복지센터에서 신청 가능합니다.\n\n끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
   {
@@ -103,9 +119,12 @@ const quickLinks = [
       category: '공지사항',
       department: '민원여권과',
       date: '2026-07-28',
-      viewCount: 0,
-      content: '인감증명서는 본인 또는 대리인이 신분증을 지참하여 민원실에서 발급받을 수 있습니다.',
-      attachment: null,
+      viewCount: 43,
+      contact: '1600-0101',
+      content:
+        '인감증명서는 본인 또는 대리인이 신분증을 지참하여 민원실에서 발급받을 수 있습니다.\n\n끝.',
+      attachment: '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: '245 KB',
     },
   },
 ]
@@ -118,7 +137,7 @@ const filteredNotices = computed(() => {
     return (
       String(item.title).toLowerCase().includes(q) ||
       String(item.department).toLowerCase().includes(q) ||
-      String(item.category).toLowerCase().includes(q)
+      String(item.content).toLowerCase().includes(q)
     )
   })
 })
@@ -153,18 +172,27 @@ function formatDate(value) {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
 
-function openNotice(notice) {
+function openNotice(notice, list = null) {
+  const navList = list || filteredNotices.value
+  modalList.value = navList
+
   if (notice.id && notices.value.some((n) => n.id === notice.id)) {
     portalStore.bumpViews(notice.id)
+    selectedNotice.value = { ...(notices.value.find((n) => n.id === notice.id) || notice) }
+  } else {
+    selectedNotice.value = { ...notice }
   }
-  const latest = notices.value.find((n) => n.id === notice.id) || notice
-  selectedNotice.value = { ...latest }
   modalOpen.value = true
+}
+
+function navigateNotice(notice) {
+  openNotice(notice, modalList.value)
 }
 
 function closeModal() {
   modalOpen.value = false
   selectedNotice.value = null
+  modalList.value = []
 }
 
 function goPage(page) {
@@ -187,23 +215,22 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1100px] px-4 py-6">
+  <main class="mx-auto max-w-[1100px] px-4 py-6 text-[#333333]">
     <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
-      <!-- Notice board (60%) -->
       <section id="notice-board" class="border border-slate-300 bg-white">
-        <div class="flex items-center justify-between border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 class="text-base font-bold text-gov-navy">알림마당</h2>
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-slate-50 px-3 py-2">
+          <h2 class="text-base font-bold text-[#0F2942]">알림마당</h2>
           <div class="flex" role="tablist" aria-label="게시판 분류">
             <button
               v-for="tab in tabs"
               :key="tab.id"
               type="button"
               role="tab"
-              class="border border-slate-300 px-2.5 py-1 text-xs font-semibold -ml-px first:ml-0"
+              class="-ml-px border border-slate-300 px-2.5 py-1 text-xs font-semibold first:ml-0"
               :class="
                 activeTab === tab.id
-                  ? 'relative z-[1] border-gov-navy bg-gov-navy text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
+                  ? 'relative z-[1] border-[#0F2942] bg-[#0F2942] text-white'
+                  : 'bg-white text-[#333333] hover:bg-slate-50'
               "
               :aria-selected="activeTab === tab.id"
               @click="activeTab = tab.id"
@@ -213,10 +240,11 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-if="isLoading" class="px-3 py-8 text-center text-sm text-slate-500">
-          불러오는 중…
-        </div>
+        <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
+          검색어 “{{ searchQuery.trim() }}” 결과 {{ filteredNotices.length }}건
+        </p>
 
+        <div v-if="isLoading" class="px-3 py-8 text-center text-sm text-slate-500">불러오는 중…</div>
         <div v-else-if="!pagedNotices.length" class="px-3 py-10 text-center text-sm text-slate-500">
           검색 조건에 맞는 게시물이 없습니다.
         </div>
@@ -232,7 +260,7 @@ onMounted(() => {
               <col class="w-14" />
             </colgroup>
             <thead>
-              <tr class="border-t-2 border-slate-800 border-b border-slate-300 bg-slate-100 text-xs text-slate-700">
+              <tr class="border-t-2 border-slate-800 border-b border-slate-300 bg-slate-100 text-xs">
                 <th class="px-2 py-2.5 font-bold">번호</th>
                 <th class="px-2 py-2.5 font-bold">분류</th>
                 <th class="px-2 py-2.5 font-bold">제목</th>
@@ -248,7 +276,7 @@ onMounted(() => {
                 class="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
                 @click="openNotice(row)"
               >
-                <td class="px-2 py-2.5 text-center text-slate-500">
+                <td class="px-2 py-2.5 text-center text-slate-600">
                   {{ filteredNotices.length - ((currentPage - 1) * pageSize + idx) }}
                 </td>
                 <td class="px-2 py-2.5">
@@ -257,11 +285,11 @@ onMounted(() => {
                   </span>
                 </td>
                 <td class="px-2 py-2.5">
-                  <span class="block truncate font-medium text-gov-navy">{{ row.title }}</span>
+                  <span class="block truncate font-medium text-[#0F2942]">{{ row.title }}</span>
                 </td>
-                <td class="truncate px-2 py-2.5 text-slate-500">{{ row.department }}</td>
-                <td class="truncate px-2 py-2.5 text-slate-500">{{ formatDate(row.date) }}</td>
-                <td class="px-2 py-2.5 text-center text-slate-500">{{ row.viewCount }}</td>
+                <td class="truncate px-2 py-2.5 text-slate-600">{{ row.department }}</td>
+                <td class="truncate px-2 py-2.5 text-slate-600">{{ formatDate(row.date) }}</td>
+                <td class="px-2 py-2.5 text-center text-slate-600">{{ row.viewCount }}</td>
               </tr>
             </tbody>
           </table>
@@ -273,9 +301,9 @@ onMounted(() => {
         >
           <button
             type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white text-slate-600 disabled:opacity-40"
+            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white disabled:opacity-40"
             :disabled="currentPage <= 1"
-            aria-label="이전"
+            aria-label="이전 페이지"
             @click="goPage(currentPage - 1)"
           >
             <ChevronLeft :size="14" />
@@ -287,8 +315,8 @@ onMounted(() => {
             class="inline-flex h-7 min-w-7 items-center justify-center border px-2 text-xs font-semibold"
             :class="
               page === currentPage
-                ? 'border-gov-navy bg-gov-navy text-white'
-                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                ? 'border-[#0F2942] bg-[#0F2942] text-white'
+                : 'border-slate-300 bg-white text-[#333333] hover:bg-slate-50'
             "
             @click="goPage(page)"
           >
@@ -296,9 +324,9 @@ onMounted(() => {
           </button>
           <button
             type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white text-slate-600 disabled:opacity-40"
+            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white disabled:opacity-40"
             :disabled="currentPage >= totalPages"
-            aria-label="다음"
+            aria-label="다음 페이지"
             @click="goPage(currentPage + 1)"
           >
             <ChevronRight :size="14" />
@@ -306,31 +334,33 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Quick civil shortcuts (40%) -->
       <aside id="minwon-quick" class="border border-slate-300 bg-white">
         <div class="border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 class="text-base font-bold text-gov-navy">자주 찾는 민원</h2>
+          <h2 class="text-base font-bold text-[#0F2942]">자주 찾는 민원</h2>
         </div>
-        <div class="grid grid-cols-2 border-t border-slate-300 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
           <button
-            v-for="(item, index) in quickLinks"
+            v-for="item in quickLinks"
             :key="item.id"
             type="button"
-            class="border-b border-r border-slate-300 px-2 py-5 text-center text-sm font-semibold text-gov-navy hover:bg-slate-50"
-            :class="{
-              'border-r-0': (index + 1) % 3 === 0,
-            }"
-            @click="openNotice(item.notice)"
+            class="border-b border-r border-slate-300 px-2 py-5 text-center text-sm font-semibold text-[#0F2942] hover:bg-slate-50"
+            @click="openNotice(item.notice, [item.notice])"
           >
             {{ item.title }}
           </button>
         </div>
         <p class="border-t border-slate-300 px-3 py-2 text-xs text-slate-500">
-          ※ 항목을 선택하면 안내 내용을 확인할 수 있습니다.
+          ※ 항목 선택 시 상세 안내를 확인할 수 있습니다.
         </p>
       </aside>
     </div>
 
-    <NoticeDetailModal :open="modalOpen" :notice="selectedNotice" @close="closeModal" />
+    <NoticeDetailModal
+      :open="modalOpen"
+      :notice="selectedNotice"
+      :list="modalList"
+      @close="closeModal"
+      @navigate="navigateNotice"
+    />
   </main>
 </template>

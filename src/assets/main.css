@@ -1,0 +1,13 @@
+/* Korean public portal base styles */
+:root {
+  --portal-text: #333333;
+  --portal-navy: #0f2942;
+  --portal-border: #0f2942;
+}
+
+html,
+body,
+#app {
+  font-family: 'Noto Sans KR', 'Pretendard', sans-serif;
+  color: var(--portal-text);
+}

@@ -21,6 +21,7 @@ function mapCategory(raw, index) {
 
 function normalizeNotice(item, index) {
   const idNum = Number(item.id ?? item.noticeId ?? index + 1)
+  const phones = ['1600-0001', '1600-0002', '1600-0003', '1600-0004']
   return {
     id: item.id ?? item.noticeId ?? `N-${index + 1}`,
     no: Number.isFinite(idNum) ? idNum : index + 1,
@@ -29,16 +30,22 @@ function normalizeNotice(item, index) {
     department: item.department ?? item.dept ?? item.organ ?? '행복시청',
     date: item.date ?? item.createdAt ?? item.regDate ?? item.publishedAt ?? '',
     viewCount: Number(item.viewCount ?? item.views ?? item.hit ?? 0),
+    contact:
+      item.contact ??
+      item.phone ??
+      item.tel ??
+      phones[index % phones.length],
     content:
       item.content ??
       item.description ??
       item.summary ??
-      '본 게시물의 상세 내용은 행복시청 홈페이지에서 확인하실 수 있습니다.',
+      '시민 여러분께 알려드립니다.\n\n본 안내는 행복시청 관련 시정 사항을 공유하기 위한 공지입니다. 자세한 내용은 담당 부서로 문의하여 주시기 바랍니다.\n\n※ 본 게시물은 시스템 테스트용 가상 데이터일 수 있습니다.',
     attachment:
       item.attachment ??
       item.fileName ??
       item.file ??
-      (index % 2 === 0 ? '2026_시정안내.pdf' : null),
+      '2026_행복시_공지사항_안내문.hwpx',
+    attachmentSize: item.attachmentSize ?? item.fileSize ?? '245 KB',
   }
 }
 
@@ -188,14 +195,26 @@ export const usePortalStore = defineStore('portal', () => {
   const searchQuery = ref('')
 
   async function loadNotices() {
+    const withMeta = (item, index) => ({
+      ...item,
+      contact: item.contact ?? `1600-000${(index % 4) + 1}`,
+      attachment: item.attachment || '2026_행복시_공지사항_안내문.hwpx',
+      attachmentSize: item.attachmentSize ?? '245 KB',
+      content:
+        item.content ||
+        '시민 여러분께 알려드립니다.\n\n본 공지는 행복시청 시정 운영과 관련한 안내사항입니다. 관련 문의는 담당 부서 연락처로 연락해 주시기 바랍니다.\n\n붙임: 세부 안내문 1부. 끝.',
+    })
+
     try {
       const payload = await http.get('/v1/portal', {
         params: { type: 'NOTICE' },
       })
       const list = asList(payload).map(normalizeNotice)
-      notices.value = list.length ? list : FALLBACK_NOTICES
+      notices.value = list.length
+        ? list
+        : FALLBACK_NOTICES.map(withMeta)
     } catch {
-      notices.value = FALLBACK_NOTICES
+      notices.value = FALLBACK_NOTICES.map(withMeta)
     }
   }
 
