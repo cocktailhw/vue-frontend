@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import http from '../utils/http'
+import http, { clearAccessToken, getAccessToken } from '../utils/http'
 
 function asList(payload) {
   if (Array.isArray(payload)) return payload
@@ -230,6 +230,7 @@ export const usePortalStore = defineStore('portal', () => {
   const boardSectionTitle = ref('시정소식 · 보도자료')
   const fontScale = ref(100)
   const isAdmin = ref(false)
+  const flashToast = ref('')
 
   const gnbBoardMap = {
     민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
@@ -244,8 +245,47 @@ export const usePortalStore = defineStore('portal', () => {
     document.documentElement.style.fontSize = `${percent}%`
   }
 
+  function showFlashToast(message) {
+    flashToast.value = message
+  }
+
+  function clearFlashToast() {
+    flashToast.value = ''
+  }
+
+  function restoreAdminSession() {
+    isAdmin.value = Boolean(getAccessToken())
+  }
+
+  async function loginAdmin(username, password) {
+    const result = await http.post('/v1/auth/login', { username, password })
+    const token =
+      result?.accessToken ??
+      result?.token ??
+      result?.access_token ??
+      (typeof result === 'string' ? result : '')
+
+    if (!token) {
+      throw new Error('NO_ACCESS_TOKEN')
+    }
+
+    localStorage.setItem('accessToken', token)
+    sessionStorage.removeItem('accessToken')
+    isAdmin.value = true
+    showFlashToast('관리자 로그인에 성공했습니다.')
+  }
+
+  function logoutAdmin({ silent = false } = {}) {
+    clearAccessToken()
+    isAdmin.value = false
+    if (!silent) {
+      showFlashToast('관리자 모드에서 로그아웃했습니다.')
+    }
+  }
+
+  /** @deprecated Use loginAdmin / logoutAdmin */
   function toggleAdmin() {
-    isAdmin.value = !isAdmin.value
+    if (isAdmin.value) logoutAdmin()
   }
 
   function selectGnb(label) {
@@ -339,7 +379,13 @@ export const usePortalStore = defineStore('portal', () => {
     boardSectionTitle,
     fontScale,
     isAdmin,
+    flashToast,
     setFontScale,
+    showFlashToast,
+    clearFlashToast,
+    restoreAdminSession,
+    loginAdmin,
+    logoutAdmin,
     toggleAdmin,
     selectGnb,
     setBoardTab,

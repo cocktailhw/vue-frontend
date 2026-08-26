@@ -8,7 +8,8 @@ import NoticeFormModal from '../components/NoticeFormModal.vue'
 import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
 const portalStore = usePortalStore()
-const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin } = storeToRefs(portalStore)
+const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin, flashToast } =
+  storeToRefs(portalStore)
 
 const isLoading = ref(false)
 const currentPage = ref(1)
@@ -126,6 +127,12 @@ function showToast(message) {
   }, 2800)
 }
 
+watch(flashToast, (message) => {
+  if (!message) return
+  showToast(message)
+  portalStore.clearFlashToast()
+})
+
 function formatDate(value) {
   if (!value) return '—'
   const text = String(value)
@@ -233,6 +240,7 @@ async function loadData() {
 }
 
 onMounted(() => {
+  portalStore.restoreAdminSession()
   loadData()
 })
 </script>

@@ -5,6 +5,7 @@ import { Search } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
 import SitemapModal from '../SitemapModal.vue'
 import AuthModal from '../AuthModal.vue'
+import AdminLoginModal from '../AdminLoginModal.vue'
 
 const portalStore = usePortalStore()
 const { searchQuery, activeGnb, fontScale, isAdmin } = storeToRefs(portalStore)
@@ -12,6 +13,7 @@ const { searchQuery, activeGnb, fontScale, isAdmin } = storeToRefs(portalStore)
 const sitemapOpen = ref(false)
 const authOpen = ref(false)
 const authMode = ref('login')
+const adminLoginOpen = ref(false)
 
 const gnbItems = [
   { label: '민원안내' },
@@ -28,6 +30,14 @@ function setFont(percent) {
 function openAuth(mode) {
   authMode.value = mode
   authOpen.value = true
+}
+
+function onAdminModeClick() {
+  if (isAdmin.value) {
+    portalStore.logoutAdmin()
+    return
+  }
+  adminLoginOpen.value = true
 }
 
 function onSearch() {
@@ -89,9 +99,9 @@ function onSitemapSelect({ columnTitle }) {
             type="button"
             class="px-2 font-bold"
             :class="isAdmin ? 'text-orange-700' : 'text-slate-600 hover:text-[#1E3A8A]'"
-            @click="portalStore.toggleAdmin()"
+            @click="onAdminModeClick"
           >
-            관리자 모드 {{ isAdmin ? 'On' : 'Off' }}
+            {{ isAdmin ? '관리자 (로그아웃)' : '관리자 모드' }}
           </button>
           <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('login')">로그인</button>
           <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('signup')">회원가입</button>
@@ -149,5 +159,6 @@ function onSitemapSelect({ columnTitle }) {
 
     <SitemapModal :open="sitemapOpen" @close="sitemapOpen = false" @select="onSitemapSelect" />
     <AuthModal :open="authOpen" :mode="authMode" @close="authOpen = false" />
+    <AdminLoginModal :open="adminLoginOpen" @close="adminLoginOpen = false" />
   </header>
 </template>

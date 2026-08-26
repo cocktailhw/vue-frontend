@@ -12,10 +12,32 @@ const http = axios.create({
   },
 })
 
+/** Called on 401/403 after tokens are cleared (avoids circular import with Pinia). */
+let unauthorizedHandler = null
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null
+}
+
+export function getAccessToken() {
+  return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || ''
+}
+
+export function clearAccessToken() {
+  localStorage.removeItem('accessToken')
+  sessionStorage.removeItem('accessToken')
+}
+
+function isAuthRequest(config) {
+  const url = String(config?.url || '')
+  return url.includes('/auth/login') || url.includes('/auth/signup')
+}
+
 http.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken')
+    const token = getAccessToken()
     if (token) {
+      config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
@@ -36,12 +58,12 @@ http.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status
+    const config = error.config
 
-    if (status === 401) {
-      localStorage.removeItem('accessToken')
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login')
-      }
+    if ((status === 401 || status === 403) && !isAuthRequest(config)) {
+      clearAccessToken()
+      unauthorizedHandler?.({ status })
+      window.alert('인증이 만료되었거나 권한이 없습니다. 다시 로그인해 주세요.')
     } else if (status >= 500) {
       window.alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
     }
