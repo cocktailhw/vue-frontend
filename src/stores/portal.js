@@ -185,6 +185,7 @@ const FALLBACK_NOTICES = [
 
 export const usePortalStore = defineStore('portal', () => {
   const notices = ref([])
+  const searchQuery = ref('')
 
   async function loadNotices() {
     try {
@@ -205,6 +206,7 @@ export const usePortalStore = defineStore('portal', () => {
 
   return {
     notices,
+    searchQuery,
     loadNotices,
     bumpViews,
   }

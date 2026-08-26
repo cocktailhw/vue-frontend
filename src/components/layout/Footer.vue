@@ -1,34 +1,27 @@
-<script setup>
-import { MapPin, Phone, Mail } from 'lucide-vue-next'
-</script>
-
 <template>
-  <footer class="mt-auto border-t border-border bg-navy text-slate-200">
-    <div class="mx-auto grid max-w-6xl gap-6 px-4 py-8 md:grid-cols-3">
-      <div>
-        <p class="text-base font-bold text-white">행복시청</p>
-        <p class="mt-2 text-sm leading-relaxed text-slate-300">
-          시민과 함께하는 열린 시정.<br />
-          본 사이트는 시스템 테스트용 가상 포털입니다.
-        </p>
+  <footer id="footer" class="mt-auto border-t-2 border-slate-800 bg-slate-800 text-slate-200">
+    <div class="mx-auto max-w-[1100px] px-4 py-6">
+      <div class="flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-600 pb-3 text-sm">
+        <a href="#" class="hover:underline">이용약관</a>
+        <span class="text-slate-600" aria-hidden="true">|</span>
+        <a href="#" class="font-bold text-yellow-300 hover:underline">개인정보처리방침</a>
+        <span class="text-slate-600" aria-hidden="true">|</span>
+        <a href="#" class="hover:underline">저작권정책</a>
+        <span class="text-slate-600" aria-hidden="true">|</span>
+        <a href="#" class="hover:underline">사이트맵</a>
       </div>
-      <div class="space-y-2 text-sm">
-        <p class="flex items-start gap-2">
-          <MapPin class="mt-0.5 h-4 w-4 shrink-0 text-point" />
-          <span>행복시 중앙로 100 (행복시청)</span>
-        </p>
-        <p class="flex items-center gap-2">
-          <Phone class="h-4 w-4 shrink-0 text-point" />
-          <span>대표전화 1600-0000</span>
-        </p>
-        <p class="flex items-center gap-2">
-          <Mail class="h-4 w-4 shrink-0 text-point" />
-          <span>webmaster@haengbok.go.kr</span>
-        </p>
-      </div>
-      <div class="text-sm text-slate-400 md:text-right">
-        <p>이용약관 · 개인정보처리방침 · 저작권정책</p>
-        <p class="mt-3">© Haengbok City Hall</p>
+
+      <div class="mt-4 grid gap-4 text-sm md:grid-cols-2">
+        <div class="space-y-1">
+          <p class="font-bold text-white">행복특별시 행복시청</p>
+          <p>(00000) 행복시 중앙로 100</p>
+          <p>대표전화 1600-0000 &nbsp;|&nbsp; 팩스 000-000-0000</p>
+          <p>이메일 webmaster@haengbok.go.kr</p>
+        </div>
+        <div class="md:text-right">
+          <p>본 사이트는 시스템 테스트 목적의 가상 포털입니다.</p>
+          <p class="mt-3 text-slate-400">Copyright © Haengbok Special City. All rights reserved.</p>
+        </div>
       </div>
     </div>
   </footer>

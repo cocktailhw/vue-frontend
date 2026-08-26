@@ -1,15 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Noto Sans KR", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
-  --color-navy: #0f2942;
-  --color-navy-dark: #0a1c2e;
-  --color-point: #0284c7;
-  --color-point-light: #e0f2fe;
+  --font-sans: "Noto Sans KR", "Malgun Gothic", Dotum, gulim, ui-sans-serif, sans-serif;
+  --color-gov-navy: #0f172a;
+  --color-gov-blue: #1e3a8a;
   --color-surface: #f8fafc;
-  --color-border: #e2e8f0;
   --color-ink: #0f172a;
-  --color-muted: #64748b;
 }
 
 html {
@@ -25,28 +21,13 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-surface);
-  color: var(--color-ink);
+  background: #f8fafc;
+  color: #0f172a;
   font-family: var(--font-sans);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 :focus-visible {
-  outline: 2px solid #0284c7;
-  outline-offset: 2px;
-}
-
-.fade-up {
-  animation: fade-up 0.25s ease-out;
-}
-
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  outline: 2px solid #1e3a8a;
+  outline-offset: 1px;
 }
