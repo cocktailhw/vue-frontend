@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onUnmounted, watch } from 'vue'
-import { X } from 'lucide-vue-next'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { FileText, X } from 'lucide-vue-next'
+import axios from 'axios'
 
 const props = defineProps({
   open: {
@@ -24,6 +25,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'navigate', 'edit', 'delete'])
 
+const downloading = ref(false)
+
 const currentIndex = computed(() => {
   if (!props.notice || !props.list.length) return -1
   return props.list.findIndex((item) => item.id === props.notice.id)
@@ -39,11 +42,29 @@ const nextNotice = computed(() => {
   return props.list[currentIndex.value + 1]
 })
 
-const attachmentName = computed(
-  () => props.notice?.attachment || '2026_행복시_공지사항_안내문.hwpx',
-)
+const hasAttachment = computed(() => Boolean(props.notice?.originalFileName))
 
-const attachmentSize = computed(() => props.notice?.attachmentSize || '245 KB')
+const originalFileName = computed(() => props.notice?.originalFileName || '')
+
+const storedFileName = computed(() => props.notice?.storedFileName || '')
+
+const formattedFileSize = computed(() => formatFileSize(props.notice?.fileSize ?? props.notice?.attachmentSize))
+
+const downloadHref = computed(() => {
+  if (!storedFileName.value) return ''
+  const base = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${base}/v1/portal/files/download/${encodeURIComponent(storedFileName.value)}`
+})
+
+function formatFileSize(value) {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string' && /[a-zA-Z]/.test(value)) return value
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes < 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function onKeydown(event) {
   if (event.key === 'Escape') emit('close')
@@ -69,29 +90,40 @@ function formatDate(value) {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
 
-function downloadAttachment() {
-  const body = [
-    '행복특별시 행복시청',
-    '공지사항 안내문 (테스트용)',
-    '',
-    `제목: ${props.notice?.title ?? ''}`,
-    `작성부서: ${props.notice?.department ?? ''}`,
-    `작성일: ${formatDate(props.notice?.date)}`,
-    '',
-    props.notice?.content ?? '',
-    '',
-    '※ 본 파일은 시스템 테스트용 가상 첨부파일입니다.',
-  ].join('\n')
+async function downloadAttachment() {
+  if (!storedFileName.value || !downloadHref.value) {
+    window.alert('다운로드할 첨부파일이 없습니다.')
+    return
+  }
 
-  const blob = new Blob([body], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = attachmentName.value
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloading.value = true
+  try {
+    const token = localStorage.getItem('accessToken')
+    const response = await axios.get(downloadHref.value, {
+      responseType: 'blob',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+
+    const blobUrl = URL.createObjectURL(response.data)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = originalFileName.value || storedFileName.value
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    // JWT 불필요·직접 링크 가능한 경우 폴백
+    const a = document.createElement('a')
+    a.href = downloadHref.value
+    a.download = originalFileName.value || storedFileName.value
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } finally {
+    downloading.value = false
+  }
 }
 
 function goPrev() {
@@ -115,7 +147,6 @@ function goNext() {
       <button type="button" class="absolute inset-0 cursor-default" aria-label="배경 닫기" @click="emit('close')" />
 
       <div class="relative z-10 w-full max-w-3xl rounded-none border-2 border-[#0F2942] bg-white">
-        <!-- Dark header bar -->
         <div class="flex items-center justify-between bg-[#0F2942] px-4 py-2.5 text-white">
           <h2 class="text-sm font-bold sm:text-base">행복시청 게시물 상세보기</h2>
           <button
@@ -128,7 +159,6 @@ function goNext() {
           </button>
         </div>
 
-        <!-- Metadata table -->
         <table class="w-full table-fixed border-collapse text-sm text-[#333333]">
           <tbody>
             <tr class="border-b border-slate-300">
@@ -150,30 +180,54 @@ function goNext() {
           </tbody>
         </table>
 
-        <!-- Attachment -->
         <div class="border-b border-slate-300 bg-slate-100 p-3">
           <p class="mb-2 text-xs font-bold text-[#333333]">첨부파일</p>
-          <div class="flex flex-wrap items-center justify-between gap-2 border border-slate-300 bg-white px-3 py-2">
-            <p class="text-sm text-[#333333]">
-              {{ attachmentName }}
-              <span class="text-slate-500">({{ attachmentSize }})</span>
-            </p>
-            <button
-              type="button"
-              class="border border-[#0F2942] bg-[#0F2942] px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800"
-              @click="downloadAttachment"
-            >
-              다운로드
-            </button>
+          <div
+            v-if="hasAttachment"
+            class="flex flex-wrap items-center justify-between gap-2 border border-slate-400 bg-white px-3 py-2.5"
+          >
+            <div class="flex min-w-0 items-center gap-2">
+              <span
+                class="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-slate-400 bg-slate-50 text-[#0F2942]"
+                aria-hidden="true"
+              >
+                <FileText :size="16" />
+              </span>
+              <p class="min-w-0 truncate text-sm text-[#333333]">
+                <span class="font-medium">{{ originalFileName }}</span>
+                <span v-if="formattedFileSize" class="ml-1 text-slate-500">({{ formattedFileSize }})</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <a
+                v-if="downloadHref"
+                :href="downloadHref"
+                class="border border-slate-400 bg-white px-3 py-1.5 text-xs font-bold text-[#0F2942] hover:bg-slate-50"
+                :download="originalFileName"
+                target="_blank"
+                rel="noopener"
+              >
+                새 창
+              </a>
+              <button
+                type="button"
+                class="border border-[#0F2942] bg-[#0F2942] px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                :disabled="downloading || !storedFileName"
+                @click="downloadAttachment"
+              >
+                {{ downloading ? '받는 중…' : '다운로드' }}
+              </button>
+            </div>
           </div>
+          <p v-else class="border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
+            첨부파일이 없습니다.
+          </p>
         </div>
 
-        <!-- Body -->
         <div class="min-h-48 border-b border-slate-300 px-4 py-5 text-sm leading-7 text-[#333333] whitespace-pre-line">
           {{ notice.content }}
         </div>
 
-        <!-- Prev / Next -->
         <div class="space-y-0 border-b border-slate-300 text-sm">
           <button
             type="button"

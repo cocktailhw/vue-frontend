@@ -10,6 +10,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'submit'])
 
+const ALLOWED_EXT = ['.pdf', '.hwpx', '.hwp', '.doc', '.docx']
+
 const typeOptions = [
   { value: 'NOTICE', label: 'NOTICE (공지)' },
   { value: 'RESERVATION', label: 'RESERVATION (예약)' },
@@ -29,10 +31,16 @@ const form = ref({
   content: '',
 })
 
+const selectedFile = ref(null)
+const fileInputKey = ref(0)
+const existingFileName = ref('')
+
 const isEdit = computed(() => props.mode === 'edit')
 const title = computed(() => (isEdit.value ? '게시물 수정' : '게시물 신규 등록'))
 
 function resetForm() {
+  selectedFile.value = null
+  fileInputKey.value += 1
   if (props.mode === 'edit' && props.notice) {
     form.value = {
       type: props.notice.type || 'NOTICE',
@@ -42,6 +50,7 @@ function resetForm() {
       status: props.notice.status || '-',
       content: props.notice.content || '',
     }
+    existingFileName.value = props.notice.originalFileName || props.notice.attachment || ''
   } else {
     form.value = {
       type: 'NOTICE',
@@ -51,7 +60,25 @@ function resetForm() {
       status: '-',
       content: '',
     }
+    existingFileName.value = ''
   }
+}
+
+function handleFileChange(event) {
+  const file = event.target.files?.[0] ?? null
+  if (!file) {
+    selectedFile.value = null
+    return
+  }
+  const lower = file.name.toLowerCase()
+  const ok = ALLOWED_EXT.some((ext) => lower.endsWith(ext))
+  if (!ok) {
+    window.alert('허용 확장자: pdf, hwpx, hwp, doc, docx')
+    event.target.value = ''
+    selectedFile.value = null
+    return
+  }
+  selectedFile.value = file
 }
 
 function onKeydown(event) {
@@ -96,7 +123,10 @@ function onSubmit() {
     window.alert('본문 내용을 입력해 주세요.')
     return
   }
-  emit('submit', { ...form.value })
+  emit('submit', {
+    ...form.value,
+    file: selectedFile.value,
+  })
 }
 </script>
 
@@ -193,6 +223,25 @@ function onSubmit() {
               class="w-full resize-y border border-slate-300 px-3 py-2 leading-relaxed"
               placeholder="공지 본문을 입력하세요."
             />
+          </div>
+
+          <div>
+            <label class="mb-1 block font-bold" for="form-file">첨부파일</label>
+            <input
+              :key="fileInputKey"
+              id="form-file"
+              type="file"
+              accept=".pdf,.hwpx,.hwp,.doc,.docx"
+              class="block w-full border border-slate-300 bg-white px-3 py-2 text-sm file:mr-3 file:border file:border-slate-400 file:bg-slate-100 file:px-2 file:py-1 file:text-xs file:font-bold"
+              @change="handleFileChange"
+            />
+            <p v-if="selectedFile" class="mt-1 text-xs text-slate-600">
+              선택 파일: {{ selectedFile.name }}
+            </p>
+            <p v-else-if="isEdit && existingFileName" class="mt-1 text-xs text-slate-600">
+              현재 첨부: {{ existingFileName }} (새 파일 선택 시 교체)
+            </p>
+            <p class="mt-1 text-xs text-slate-500">허용: pdf, hwpx, hwp, doc, docx</p>
           </div>
 
           <div class="flex justify-end gap-2 border-t border-slate-300 pt-3">
