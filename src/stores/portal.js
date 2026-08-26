@@ -193,6 +193,45 @@ const FALLBACK_NOTICES = [
 export const usePortalStore = defineStore('portal', () => {
   const notices = ref([])
   const searchQuery = ref('')
+  const activeGnb = ref('시정소식')
+  const activeBoardTab = ref('보도자료')
+  const boardSectionTitle = ref('시정소식 · 보도자료')
+  const fontScale = ref(100)
+
+  const gnbBoardMap = {
+    민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
+    시정소식: { tab: '보도자료', title: '시정소식 · 보도자료', scroll: 'notice-board' },
+    정보공개: { tab: '고시공고', title: '정보공개 · 고시공고', scroll: 'notice-board' },
+    시민참여: { tab: '공지사항', title: '시민참여 · 공지사항', scroll: 'notice-board' },
+    시청안내: { tab: 'all', title: '시청안내 · 전체 알림', scroll: 'footer' },
+  }
+
+  function setFontScale(percent) {
+    fontScale.value = percent
+    document.documentElement.style.fontSize = `${percent}%`
+  }
+
+  function selectGnb(label) {
+    activeGnb.value = label
+    const config = gnbBoardMap[label]
+    if (!config) return
+    activeBoardTab.value = config.tab
+    boardSectionTitle.value = config.title
+    requestAnimationFrame(() => {
+      document.getElementById(config.scroll)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  function setBoardTab(tabId) {
+    activeBoardTab.value = tabId
+    const titles = {
+      all: '알림마당 · 전체',
+      공지사항: '알림마당 · 공지사항',
+      고시공고: '알림마당 · 고시공고',
+      보도자료: '알림마당 · 보도자료',
+    }
+    boardSectionTitle.value = titles[tabId] || '알림마당'
+  }
 
   async function loadNotices() {
     const withMeta = (item, index) => ({
@@ -226,6 +265,13 @@ export const usePortalStore = defineStore('portal', () => {
   return {
     notices,
     searchQuery,
+    activeGnb,
+    activeBoardTab,
+    boardSectionTitle,
+    fontScale,
+    setFontScale,
+    selectGnb,
+    setBoardTab,
     loadNotices,
     bumpViews,
   }

@@ -4,18 +4,21 @@ import { storeToRefs } from 'pinia'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { usePortalStore } from '../stores/portal'
 import NoticeDetailModal from '../components/NoticeDetailModal.vue'
+import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
 const portalStore = usePortalStore()
-const { notices, searchQuery } = storeToRefs(portalStore)
+const { notices, searchQuery, activeBoardTab, boardSectionTitle } = storeToRefs(portalStore)
 
 const isLoading = ref(false)
-const activeTab = ref('all')
 const currentPage = ref(1)
 const pageSize = 5
 
 const modalOpen = ref(false)
 const selectedNotice = ref(null)
 const modalList = ref([])
+
+const minwonOpen = ref(false)
+const selectedMinwon = ref(null)
 
 const tabs = [
   { id: 'all', label: '전체' },
@@ -28,111 +31,52 @@ const quickLinks = [
   {
     id: 'id-copy',
     title: '주민등록표 등본',
-    notice: {
-      id: 'q-id',
-      title: '주민등록표 등본 발급 안내',
-      category: '공지사항',
-      department: '민원여권과',
-      date: '2026-08-10',
-      viewCount: 120,
-      contact: '1600-0101',
-      content:
-        '시민 여러분께 알려드립니다.\n\n주민등록표 등·초본은 정부24 또는 무인발급기에서 발급할 수 있습니다. 방문 발급 시 신분증을 지참해 주시기 바랍니다.\n\n붙임: 발급 안내문 1부. 끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '민원여권과',
+    fee: '무료',
+    documents: ['신분증(주민등록증·운전면허증 등)', '대리 신청 시 위임장 및 대리인 신분증'],
   },
   {
     id: 'tax',
     title: '지방세 납부',
-    notice: {
-      id: 'q-tax',
-      title: '지방세 납부 안내',
-      category: '공지사항',
-      department: '세무과',
-      date: '2026-08-20',
-      viewCount: 88,
-      contact: '1600-0102',
-      content:
-        '시민 여러분께 알려드립니다.\n\n지방세는 위택스(Wetax) 및 금융기관 앱에서 납부할 수 있습니다. 납부기한 경과 시 가산금이 부과될 수 있으니 기한 내 납부하여 주시기 바랍니다.\n\n끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '세정과',
+    fee: '무료(납부세액 별도)',
+    documents: ['납세고지서 또는 전자고지 확인', '본인 명의 결제수단'],
   },
   {
     id: 'building',
     title: '건축물대장',
-    notice: {
-      id: 'q-building',
-      title: '건축물대장 열람·발급 안내',
-      category: '공지사항',
-      department: '건축과',
-      date: '2026-08-05',
-      viewCount: 64,
-      contact: '1600-0103',
-      content:
-        '건축물대장은 세움터 또는 민원실에서 열람·발급할 수 있습니다. 문의는 건축과로 연락해 주세요.\n\n끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '건축과',
+    fee: '열람 무료 / 발급 유료',
+    documents: ['신청서', '신분증', '이해관계 증빙서류(해당 시)'],
   },
   {
     id: 'rent',
     title: '대관신청',
-    notice: {
-      id: 'q-rent',
-      title: '공공시설 대관신청 안내',
-      category: '공지사항',
-      department: '문화체육과',
-      date: '2026-08-01',
-      viewCount: 51,
-      contact: '1600-0104',
-      content:
-        '시 소유 공공시설 대관은 사전 신청이 필요합니다. 상세 일정과 이용료는 담당 부서로 문의해 주시기 바랍니다.\n\n끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '문화체육과',
+    fee: '시설별 상이',
+    documents: ['대관신청서', '신분증', '행사계획서(해당 시)'],
   },
   {
     id: 'move',
     title: '전입신고',
-    notice: {
-      id: 'q-move',
-      title: '전입신고 절차 안내',
-      category: '공지사항',
-      department: '민원여권과',
-      date: '2026-07-30',
-      viewCount: 77,
-      contact: '1600-0101',
-      content:
-        '이사 후 14일 이내 전입신고를 하여야 합니다. 정부24 또는 관할 행정복지센터에서 신청 가능합니다.\n\n끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '민원여권과',
+    fee: '무료',
+    documents: ['신분증', '전입신고서', '세대주 확인 서류(해당 시)'],
   },
   {
     id: 'seal',
     title: '인감증명',
-    notice: {
-      id: 'q-seal',
-      title: '인감증명서 발급 안내',
-      category: '공지사항',
-      department: '민원여권과',
-      date: '2026-07-28',
-      viewCount: 43,
-      contact: '1600-0101',
-      content:
-        '인감증명서는 본인 또는 대리인이 신분증을 지참하여 민원실에서 발급받을 수 있습니다.\n\n끝.',
-      attachment: '2026_행복시_공지사항_안내문.hwpx',
-      attachmentSize: '245 KB',
-    },
+    agency: '민원여권과',
+    fee: '1통 600원(기준)',
+    documents: ['신분증', '인감증명 발급신청서', '대리 시 위임장'],
   },
 ]
 
 const filteredNotices = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
+  const tab = activeBoardTab.value
   return notices.value.filter((item) => {
-    if (activeTab.value !== 'all' && item.category !== activeTab.value) return false
+    if (tab !== 'all' && item.category !== tab) return false
     if (!q) return true
     return (
       String(item.title).toLowerCase().includes(q) ||
@@ -158,7 +102,7 @@ const pagedNotices = computed(() => {
   return filteredNotices.value.slice(start, start + pageSize)
 })
 
-watch([searchQuery, activeTab], () => {
+watch([searchQuery, activeBoardTab], () => {
   currentPage.value = 1
 })
 
@@ -172,10 +116,13 @@ function formatDate(value) {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
 
+function onTabClick(tabId) {
+  portalStore.setBoardTab(tabId)
+}
+
 function openNotice(notice, list = null) {
   const navList = list || filteredNotices.value
   modalList.value = navList
-
   if (notice.id && notices.value.some((n) => n.id === notice.id)) {
     portalStore.bumpViews(notice.id)
     selectedNotice.value = { ...(notices.value.find((n) => n.id === notice.id) || notice) }
@@ -193,6 +140,11 @@ function closeModal() {
   modalOpen.value = false
   selectedNotice.value = null
   modalList.value = []
+}
+
+function openMinwon(item) {
+  selectedMinwon.value = item
+  minwonOpen.value = true
 }
 
 function goPage(page) {
@@ -219,7 +171,7 @@ onMounted(() => {
     <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
       <section id="notice-board" class="border border-slate-300 bg-white">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 class="text-base font-bold text-[#0F2942]">알림마당</h2>
+          <h2 class="text-base font-bold text-[#0F2942]">{{ boardSectionTitle }}</h2>
           <div class="flex" role="tablist" aria-label="게시판 분류">
             <button
               v-for="tab in tabs"
@@ -228,12 +180,12 @@ onMounted(() => {
               role="tab"
               class="-ml-px border border-slate-300 px-2.5 py-1 text-xs font-semibold first:ml-0"
               :class="
-                activeTab === tab.id
+                activeBoardTab === tab.id
                   ? 'relative z-[1] border-[#0F2942] bg-[#0F2942] text-white'
                   : 'bg-white text-[#333333] hover:bg-slate-50'
               "
-              :aria-selected="activeTab === tab.id"
-              @click="activeTab = tab.id"
+              :aria-selected="activeBoardTab === tab.id"
+              @click="onTabClick(tab.id)"
             >
               {{ tab.label }}
             </button>
@@ -242,6 +194,7 @@ onMounted(() => {
 
         <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
           검색어 “{{ searchQuery.trim() }}” 결과 {{ filteredNotices.length }}건
+          (페이지당 {{ pageSize }}건)
         </p>
 
         <div v-if="isLoading" class="px-3 py-8 text-center text-sm text-slate-500">불러오는 중…</div>
@@ -343,14 +296,14 @@ onMounted(() => {
             v-for="item in quickLinks"
             :key="item.id"
             type="button"
-            class="border-b border-r border-slate-300 px-2 py-5 text-center text-sm font-semibold text-[#0F2942] hover:bg-slate-50"
-            @click="openNotice(item.notice, [item.notice])"
+            class="cursor-pointer border-b border-r border-slate-300 px-2 py-5 text-center text-sm font-semibold text-[#0F2942] hover:bg-slate-100"
+            @click="openMinwon(item)"
           >
             {{ item.title }}
           </button>
         </div>
         <p class="border-t border-slate-300 px-3 py-2 text-xs text-slate-500">
-          ※ 항목 선택 시 상세 안내를 확인할 수 있습니다.
+          ※ 항목을 클릭하면 구비서류와 신청 안내를 확인할 수 있습니다.
         </p>
       </aside>
     </div>
@@ -361,6 +314,11 @@ onMounted(() => {
       :list="modalList"
       @close="closeModal"
       @navigate="navigateNotice"
+    />
+    <MinwonDetailModal
+      :open="minwonOpen"
+      :item="selectedMinwon"
+      @close="minwonOpen = false"
     />
   </main>
 </template>
