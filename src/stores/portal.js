@@ -25,9 +25,11 @@ function normalizeNotice(item, index) {
   return {
     id: item.id ?? item.noticeId ?? `N-${index + 1}`,
     no: Number.isFinite(idNum) ? idNum : index + 1,
+    type: item.type ?? item.portalType ?? 'NOTICE',
     title: item.title ?? item.subject ?? '제목 없음',
     category: mapCategory(item.category ?? item.typeName ?? item.boardType, index),
     department: item.department ?? item.dept ?? item.organ ?? '행복시청',
+    status: item.status ?? item.stateName ?? '-',
     date: item.date ?? item.createdAt ?? item.regDate ?? item.publishedAt ?? '',
     viewCount: Number(item.viewCount ?? item.views ?? item.hit ?? 0),
     contact:
@@ -53,9 +55,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-1',
     no: 1,
+    type: 'NOTICE',
     title: '2026년 상반기 지방세 납부 일정 안내',
     category: '공지사항',
     department: '세무과',
+    status: '-',
     date: '2026-08-20',
     viewCount: 1284,
     content:
@@ -65,9 +69,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-2',
     no: 2,
+    type: 'NOTICE',
     title: '행복시 청사 방문객 주차 안내 변경 공지',
     category: '공지사항',
     department: '총무과',
+    status: '-',
     date: '2026-08-18',
     viewCount: 856,
     content:
@@ -77,9 +83,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-3',
     no: 3,
+    type: 'NOTICE',
     title: '행복시, 디지털 민원 서비스 확대 추진',
     category: '보도자료',
     department: '홍보담당관',
+    status: '-',
     date: '2026-08-15',
     viewCount: 642,
     content:
@@ -89,9 +97,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-4',
     no: 4,
+    type: 'NOTICE',
     title: '행복시 공원 조성사업 실시계획 고시',
     category: '고시공고',
     department: '도시공원과',
+    status: '-',
     date: '2026-08-12',
     viewCount: 391,
     content:
@@ -101,9 +111,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-5',
     no: 5,
+    type: 'NOTICE',
     title: '주민등록표 등·초본 온라인 발급 이용 안내',
     category: '공지사항',
     department: '민원여권과',
+    status: '-',
     date: '2026-08-10',
     viewCount: 2103,
     content:
@@ -113,9 +125,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-6',
     no: 6,
+    type: 'NOTICE',
     title: '행복시 여름철 폭염 대비 무더위 쉼터 운영',
     category: '보도자료',
     department: '안전총괄과',
+    status: '-',
     date: '2026-08-08',
     viewCount: 977,
     content:
@@ -125,9 +139,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-7',
     no: 7,
+    type: 'NOTICE',
     title: '공유재산 대부 입찰 공고',
     category: '고시공고',
     department: '회계과',
+    status: '접수중',
     date: '2026-08-05',
     viewCount: 254,
     content: '행복시 소유 공유재산 대부 입찰을 공고합니다. 입찰 참가 자격 및 일정은 첨부파일을 참고하십시오.',
@@ -136,9 +152,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-8',
     no: 8,
+    type: 'NOTICE',
     title: '시정자문위원회 제3차 회의 결과 안내',
     category: '공지사항',
     department: '정책기획과',
+    status: '-',
     date: '2026-08-03',
     viewCount: 418,
     content: '시정자문위원회 제3차 회의 주요 논의사항과 후속 조치를 안내드립니다.',
@@ -147,9 +165,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-9',
     no: 9,
+    type: 'NOTICE',
     title: '행복시 청년 주거지원 사업 설명회 개최',
     category: '보도자료',
     department: '청년정책과',
+    status: '접수중',
     date: '2026-08-01',
     viewCount: 733,
     content: '청년 주거지원 사업 설명회를 개최합니다. 신청 자격과 지원 내용은 시 홈페이지에서 확인 가능합니다.',
@@ -158,9 +178,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-10',
     no: 10,
+    type: 'NOTICE',
     title: '도시관리계획 결정(변경) 열람 공고',
     category: '고시공고',
     department: '도시계획과',
+    status: '마감',
     date: '2026-07-28',
     viewCount: 512,
     content: '도시관리계획 결정(변경)안에 대한 열람을 실시하오니 의견이 있으신 분은 기한 내 제출하여 주시기 바랍니다.',
@@ -169,9 +191,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-11',
     no: 11,
+    type: 'NOTICE',
     title: '행복시청 민원실 운영시간 조정 안내',
     category: '공지사항',
     department: '민원여권과',
+    status: '-',
     date: '2026-07-25',
     viewCount: 1450,
     content: '민원 대기시간 단축을 위해 민원실 창구 운영시간이 일부 조정됩니다.',
@@ -180,9 +204,11 @@ const FALLBACK_NOTICES = [
   {
     id: 'F-12',
     no: 12,
+    type: 'NOTICE',
     title: '행복시 탄소중립 실천 캠페인 추진',
     category: '보도자료',
     department: '환경정책과',
+    status: '-',
     date: '2026-07-22',
     viewCount: 366,
     content: '시민과 함께하는 탄소중립 실천 캠페인을 추진합니다. 참여 방법은 시 누리집을 참고해 주세요.',
@@ -197,6 +223,7 @@ export const usePortalStore = defineStore('portal', () => {
   const activeBoardTab = ref('보도자료')
   const boardSectionTitle = ref('시정소식 · 보도자료')
   const fontScale = ref(100)
+  const isAdmin = ref(false)
 
   const gnbBoardMap = {
     민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
@@ -209,6 +236,10 @@ export const usePortalStore = defineStore('portal', () => {
   function setFontScale(percent) {
     fontScale.value = percent
     document.documentElement.style.fontSize = `${percent}%`
+  }
+
+  function toggleAdmin() {
+    isAdmin.value = !isAdmin.value
   }
 
   function selectGnb(label) {
@@ -233,28 +264,59 @@ export const usePortalStore = defineStore('portal', () => {
     boardSectionTitle.value = titles[tabId] || '알림마당'
   }
 
-  async function loadNotices() {
-    const withMeta = (item, index) => ({
-      ...item,
+  function withMeta(item, index) {
+    return {
+      ...normalizeNotice(item, index),
       contact: item.contact ?? `1600-000${(index % 4) + 1}`,
       attachment: item.attachment || '2026_행복시_공지사항_안내문.hwpx',
       attachmentSize: item.attachmentSize ?? '245 KB',
       content:
         item.content ||
         '시민 여러분께 알려드립니다.\n\n본 공지는 행복시청 시정 운영과 관련한 안내사항입니다. 관련 문의는 담당 부서 연락처로 연락해 주시기 바랍니다.\n\n붙임: 세부 안내문 1부. 끝.',
-    })
+    }
+  }
 
+  async function loadNotices() {
     try {
       const payload = await http.get('/v1/portal', {
         params: { type: 'NOTICE' },
       })
-      const list = asList(payload).map(normalizeNotice)
-      notices.value = list.length
-        ? list
-        : FALLBACK_NOTICES.map(withMeta)
+      const list = asList(payload).map((item, index) => withMeta(item, index))
+      notices.value = list.length ? list : FALLBACK_NOTICES.map(withMeta)
     } catch {
       notices.value = FALLBACK_NOTICES.map(withMeta)
     }
+  }
+
+  async function createNotice(form) {
+    const payload = {
+      type: form.type,
+      title: form.title,
+      department: form.department,
+      status: form.status,
+      content: form.content,
+      category: form.category,
+    }
+    await http.post('/v1/portal', payload)
+    await loadNotices()
+  }
+
+  async function updateNotice(id, form) {
+    const payload = {
+      type: form.type,
+      title: form.title,
+      department: form.department,
+      status: form.status,
+      content: form.content,
+      category: form.category,
+    }
+    await http.put(`/v1/portal/${id}`, payload)
+    await loadNotices()
+  }
+
+  async function deleteNotice(id) {
+    await http.delete(`/v1/portal/${id}`)
+    await loadNotices()
   }
 
   function bumpViews(id) {
@@ -269,10 +331,15 @@ export const usePortalStore = defineStore('portal', () => {
     activeBoardTab,
     boardSectionTitle,
     fontScale,
+    isAdmin,
     setFontScale,
+    toggleAdmin,
     selectGnb,
     setBoardTab,
     loadNotices,
+    createNotice,
+    updateNotice,
+    deleteNotice,
     bumpViews,
   }
 })

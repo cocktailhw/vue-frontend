@@ -4,10 +4,11 @@ import { storeToRefs } from 'pinia'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { usePortalStore } from '../stores/portal'
 import NoticeDetailModal from '../components/NoticeDetailModal.vue'
+import NoticeFormModal from '../components/NoticeFormModal.vue'
 import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
 const portalStore = usePortalStore()
-const { notices, searchQuery, activeBoardTab, boardSectionTitle } = storeToRefs(portalStore)
+const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin } = storeToRefs(portalStore)
 
 const isLoading = ref(false)
 const currentPage = ref(1)
@@ -17,8 +18,15 @@ const modalOpen = ref(false)
 const selectedNotice = ref(null)
 const modalList = ref([])
 
+const formOpen = ref(false)
+const formMode = ref('create')
+const editingNotice = ref(null)
+
 const minwonOpen = ref(false)
 const selectedMinwon = ref(null)
+
+const toast = ref({ show: false, message: '' })
+let toastTimer = null
 
 const tabs = [
   { id: 'all', label: '전체' },
@@ -110,6 +118,14 @@ watch(totalPages, (total) => {
   if (currentPage.value > total) currentPage.value = total
 })
 
+function showToast(message) {
+  toast.value = { show: true, message }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toast.value.show = false
+  }, 2800)
+}
+
 function formatDate(value) {
   if (!value) return '—'
   const text = String(value)
@@ -142,6 +158,61 @@ function closeModal() {
   modalList.value = []
 }
 
+function openCreateForm() {
+  formMode.value = 'create'
+  editingNotice.value = null
+  formOpen.value = true
+}
+
+function openEditForm(notice) {
+  formMode.value = 'edit'
+  editingNotice.value = notice
+  formOpen.value = true
+  modalOpen.value = false
+}
+
+function closeForm() {
+  formOpen.value = false
+  editingNotice.value = null
+}
+
+async function onFormSubmit(formData) {
+  try {
+    if (formMode.value === 'edit' && editingNotice.value?.id) {
+      await portalStore.updateNotice(editingNotice.value.id, formData)
+      showToast('게시물이 수정되었습니다.')
+    } else {
+      await portalStore.createNotice(formData)
+      showToast('게시물이 등록되었습니다.')
+    }
+    closeForm()
+    closeModal()
+  } catch {
+    window.alert('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+  }
+}
+
+async function onDeleteNotice(notice) {
+  if (!confirm('정말 삭제하시겠습니까?')) return
+  try {
+    await portalStore.deleteNotice(notice.id)
+    closeModal()
+    showToast('게시물이 삭제되었습니다.')
+  } catch {
+    window.alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+  }
+}
+
+function onRowEdit(event, row) {
+  event.stopPropagation()
+  openEditForm(row)
+}
+
+async function onRowDelete(event, row) {
+  event.stopPropagation()
+  await onDeleteNotice(row)
+}
+
 function openMinwon(item) {
   selectedMinwon.value = item
   minwonOpen.value = true
@@ -168,6 +239,16 @@ onMounted(() => {
 
 <template>
   <main class="mx-auto max-w-[1100px] px-4 py-6 text-[#333333]">
+    <Transition name="toast">
+      <div
+        v-if="toast.show"
+        class="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 border-2 border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white shadow-lg"
+        role="status"
+      >
+        {{ toast.message }}
+      </div>
+    </Transition>
+
     <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
       <section id="notice-board" class="border border-slate-300 bg-white">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-slate-50 px-3 py-2">
@@ -192,6 +273,16 @@ onMounted(() => {
           </div>
         </div>
 
+        <div v-if="isAdmin" class="border-b border-slate-300 bg-white px-3 py-2">
+          <button
+            type="button"
+            class="border border-[#0F2942] bg-[#0F2942] px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+            @click="openCreateForm"
+          >
+            글쓰기 (신규 등록)
+          </button>
+        </div>
+
         <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
           검색어 “{{ searchQuery.trim() }}” 결과 {{ filteredNotices.length }}건
           (페이지당 {{ pageSize }}건)
@@ -211,6 +302,7 @@ onMounted(() => {
               <col class="w-24" />
               <col class="w-24" />
               <col class="w-14" />
+              <col v-if="isAdmin" class="w-28" />
             </colgroup>
             <thead>
               <tr class="border-t-2 border-slate-800 border-b border-slate-300 bg-slate-100 text-xs">
@@ -220,6 +312,7 @@ onMounted(() => {
                 <th class="px-2 py-2.5 font-bold">담당부서</th>
                 <th class="px-2 py-2.5 font-bold">작성일</th>
                 <th class="px-2 py-2.5 font-bold">조회</th>
+                <th v-if="isAdmin" class="px-2 py-2.5 font-bold">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -243,6 +336,24 @@ onMounted(() => {
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ row.department }}</td>
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ formatDate(row.date) }}</td>
                 <td class="px-2 py-2.5 text-center text-slate-600">{{ row.viewCount }}</td>
+                <td v-if="isAdmin" class="px-2 py-2.5">
+                  <div class="flex justify-center gap-1">
+                    <button
+                      type="button"
+                      class="border border-[#0F2942] px-1.5 py-0.5 text-xs font-bold text-[#0F2942] hover:bg-slate-100"
+                      @click="onRowEdit($event, row)"
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
+                      class="border border-red-700 px-1.5 py-0.5 text-xs font-bold text-red-700 hover:bg-red-50"
+                      @click="onRowDelete($event, row)"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -312,8 +423,18 @@ onMounted(() => {
       :open="modalOpen"
       :notice="selectedNotice"
       :list="modalList"
+      :is-admin="isAdmin"
       @close="closeModal"
       @navigate="navigateNotice"
+      @edit="openEditForm"
+      @delete="onDeleteNotice"
+    />
+    <NoticeFormModal
+      :open="formOpen"
+      :mode="formMode"
+      :notice="editingNotice"
+      @close="closeForm"
+      @submit="onFormSubmit"
     />
     <MinwonDetailModal
       :open="minwonOpen"
@@ -322,3 +443,15 @@ onMounted(() => {
     />
   </main>
 </template>
+
+<style scoped>
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 0.5rem);
+}
+</style>

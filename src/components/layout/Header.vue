@@ -7,7 +7,7 @@ import SitemapModal from '../SitemapModal.vue'
 import AuthModal from '../AuthModal.vue'
 
 const portalStore = usePortalStore()
-const { searchQuery, activeGnb, fontScale } = storeToRefs(portalStore)
+const { searchQuery, activeGnb, fontScale, isAdmin } = storeToRefs(portalStore)
 
 const sitemapOpen = ref(false)
 const authOpen = ref(false)
@@ -85,6 +85,14 @@ function onSitemapSelect({ columnTitle }) {
               축소
             </button>
           </div>
+          <button
+            type="button"
+            class="px-2 font-bold"
+            :class="isAdmin ? 'text-orange-700' : 'text-slate-600 hover:text-[#1E3A8A]'"
+            @click="portalStore.toggleAdmin()"
+          >
+            관리자 모드 {{ isAdmin ? 'On' : 'Off' }}
+          </button>
           <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('login')">로그인</button>
           <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('signup')">회원가입</button>
           <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="sitemapOpen = true">사이트맵</button>

@@ -16,9 +16,13 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['close', 'navigate'])
+const emit = defineEmits(['close', 'navigate', 'edit', 'delete'])
 
 const currentIndex = computed(() => {
   if (!props.notice || !props.list.length) return -1
@@ -191,7 +195,23 @@ function goNext() {
           </button>
         </div>
 
-        <div class="flex justify-center bg-slate-50 px-4 py-4">
+        <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-50 px-4 py-4">
+          <template v-if="isAdmin">
+            <button
+              type="button"
+              class="border border-[#0F2942] bg-white px-6 py-2.5 text-sm font-bold text-[#0F2942] hover:bg-slate-100"
+              @click="emit('edit', notice)"
+            >
+              수정
+            </button>
+            <button
+              type="button"
+              class="border border-red-700 bg-red-700 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-800"
+              @click="emit('delete', notice)"
+            >
+              삭제
+            </button>
+          </template>
           <button
             type="button"
             class="border border-[#0F2942] bg-[#0F2942] px-8 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
