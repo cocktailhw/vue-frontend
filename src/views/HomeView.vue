@@ -22,6 +22,7 @@ const modalList = ref([])
 const formOpen = ref(false)
 const formMode = ref('create')
 const editingNotice = ref(null)
+const isSubmitting = ref(false)
 
 const minwonOpen = ref(false)
 const selectedMinwon = ref(null)
@@ -179,11 +180,14 @@ function openEditForm(notice) {
 }
 
 function closeForm() {
+  if (isSubmitting.value) return
   formOpen.value = false
   editingNotice.value = null
 }
 
 async function onFormSubmit(formData) {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
   try {
     if (formMode.value === 'edit' && editingNotice.value?.id) {
       await portalStore.updateNotice(editingNotice.value.id, formData)
@@ -192,10 +196,13 @@ async function onFormSubmit(formData) {
       await portalStore.createNotice(formData)
       showToast('게시물이 등록되었습니다.')
     }
-    closeForm()
+    formOpen.value = false
+    editingNotice.value = null
     closeModal()
   } catch {
     window.alert('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -441,6 +448,7 @@ onMounted(() => {
       :open="formOpen"
       :mode="formMode"
       :notice="editingNotice"
+      :submitting="isSubmitting"
       @close="closeForm"
       @submit="onFormSubmit"
     />
