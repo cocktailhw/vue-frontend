@@ -9,6 +9,14 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        // Forward Set-Cookie / Cookie for HttpOnly session auth in local dev.
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            if (req.headers.cookie) {
+              proxyReq.setHeader('cookie', req.headers.cookie)
+            }
+          })
+        },
       },
     },
   },

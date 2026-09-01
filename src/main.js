@@ -16,6 +16,7 @@ setUnauthorizedHandler(() => {
   usePortalStore(pinia).logoutAdmin({ silent: true })
 })
 
+// Fire-and-forget: admin UI appears once /auth/me confirms the cookie session.
 usePortalStore(pinia).restoreAdminSession()
 
 app.mount('#app')

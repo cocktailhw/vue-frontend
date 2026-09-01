@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { FALLBACK_NOTICES } from '../data/fallbackNotices'
-import http, { clearAccessToken, getAccessToken } from '../utils/http'
+import http, { clearLegacyAccessToken } from '../utils/http'
 import { parsePagedModel, sliceForPage } from '../utils/pagedModel'
 
 const DEFAULT_PAGE_SIZE = 5
@@ -90,34 +90,39 @@ export const usePortalStore = defineStore('portal', () => {
     flashToast.value = ''
   }
 
-  function restoreAdminSession() {
-    isAdmin.value = Boolean(getAccessToken())
+  /**
+   * Restore admin UI from HttpOnly session cookie via /auth/me.
+   * Also clears leftover localStorage tokens from the old Bearer scheme.
+   */
+  async function restoreAdminSession() {
+    clearLegacyAccessToken()
+    try {
+      await http.get('/v1/auth/me')
+      isAdmin.value = true
+    } catch {
+      isAdmin.value = false
+    }
   }
 
   async function loginAdmin(username, password) {
-    const result = await http.post('/v1/auth/login', { username, password })
-    const token =
-      result?.accessToken ??
-      result?.token ??
-      result?.access_token ??
-      (typeof result === 'string' ? result : '')
-
-    if (!token) {
-      throw new Error('NO_ACCESS_TOKEN')
-    }
-
-    localStorage.setItem('accessToken', token)
-    sessionStorage.removeItem('accessToken')
+    await http.post('/v1/auth/login', { username, password })
+    // Cookie is set by the server (HttpOnly); no token stored in JS.
     isAdmin.value = true
     showFlashToast('관리자 로그인에 성공했습니다.')
   }
 
-  function logoutAdmin({ silent = false } = {}) {
-    clearAccessToken()
+  async function logoutAdmin({ silent = false } = {}) {
     isAdmin.value = false
-    if (!silent) {
-      showFlashToast('관리자 모드에서 로그아웃했습니다.')
+    clearLegacyAccessToken()
+
+    if (silent) return
+
+    try {
+      await http.post('/v1/auth/logout')
+    } catch {
+      // Cookie may already be cleared / session expired — UI already public.
     }
+    showFlashToast('관리자 모드에서 로그아웃했습니다.')
   }
 
   function selectGnb(label) {
