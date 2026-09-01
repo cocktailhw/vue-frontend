@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { FileText, X } from 'lucide-vue-next'
+import { ChevronDown, ChevronUp, Download, FileText, X } from 'lucide-vue-next'
 import http from '../utils/http'
 import { sanitizeFilename, sanitizeStoredFileName } from '../utils/file'
 
@@ -50,6 +50,8 @@ const originalFileName = computed(() => props.notice?.originalFileName || '')
 const storedFileName = computed(() => props.notice?.storedFileName || '')
 
 const formattedFileSize = computed(() => formatFileSize(props.notice?.fileSize ?? props.notice?.attachmentSize))
+
+const categoryLabel = computed(() => props.notice?.category || '공지사항')
 
 function formatFileSize(value) {
   if (value == null || value === '') return ''
@@ -126,134 +128,190 @@ function goNext() {
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="open && notice"
-      class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-12 sm:items-center sm:pt-4"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="notice.title"
-    >
-      <button type="button" class="absolute inset-0 cursor-default" aria-label="배경 닫기" @click="emit('close')" />
+    <Transition name="modal">
+      <div
+        v-if="open && notice"
+        class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#0a1628]/55 p-4 pt-10 backdrop-blur-[2px] sm:items-center sm:pt-4"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="notice.title"
+      >
+        <button type="button" class="absolute inset-0 cursor-default" aria-label="배경 닫기" @click="emit('close')" />
 
-      <div class="relative z-10 w-full max-w-3xl rounded-none border-2 border-[#0F2942] bg-white">
-        <div class="flex items-center justify-between bg-[#0F2942] px-4 py-2.5 text-white">
-          <h2 class="text-sm font-bold sm:text-base">행복시청 게시물 상세보기</h2>
-          <button
-            type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-white/40 text-white hover:bg-white/10"
-            aria-label="닫기"
-            @click="emit('close')"
-          >
-            <X :size="16" />
-          </button>
-        </div>
-
-        <table class="w-full table-fixed border-collapse text-sm text-[#333333]">
-          <tbody>
-            <tr class="border-b border-slate-300">
-              <th class="w-28 bg-slate-100 px-3 py-2.5 text-left font-bold text-[#333333]">제목</th>
-              <td class="px-3 py-2.5 font-bold" colspan="3">{{ notice.title }}</td>
-            </tr>
-            <tr class="border-b border-slate-300">
-              <th class="bg-slate-100 px-3 py-2.5 text-left font-bold">작성부서</th>
-              <td class="px-3 py-2.5">{{ notice.department }}</td>
-              <th class="w-24 bg-slate-100 px-3 py-2.5 text-left font-bold">작성일</th>
-              <td class="px-3 py-2.5">{{ formatDate(notice.date) }}</td>
-            </tr>
-            <tr class="border-b border-slate-300">
-              <th class="bg-slate-100 px-3 py-2.5 text-left font-bold">조회수</th>
-              <td class="px-3 py-2.5">{{ notice.viewCount }}</td>
-              <th class="bg-slate-100 px-3 py-2.5 text-left font-bold">담당자 연락처</th>
-              <td class="px-3 py-2.5">{{ notice.contact || '1600-0000' }}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="border-b border-slate-300 bg-slate-100 p-3">
-          <p class="mb-2 text-xs font-bold text-[#333333]">첨부파일</p>
-          <div
-            v-if="hasAttachment"
-            class="flex flex-wrap items-center justify-between gap-2 border border-slate-400 bg-white px-3 py-2.5"
-          >
-            <div class="flex min-w-0 items-center gap-2">
-              <span
-                class="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-slate-400 bg-slate-50 text-[#0F2942]"
-                aria-hidden="true"
-              >
-                <FileText :size="16" />
-              </span>
-              <p class="min-w-0 truncate text-sm text-[#333333]">
-                <span class="font-medium">{{ originalFileName }}</span>
-                <span v-if="formattedFileSize" class="ml-1 text-slate-500">({{ formattedFileSize }})</span>
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
+        <div
+          class="modal-panel relative z-10 w-full max-w-3xl overflow-hidden border border-[#0F2942]/80 bg-white shadow-[0_24px_64px_-12px_rgba(15,41,66,0.45)]"
+        >
+          <div class="relative bg-[#0F2942] px-5 py-3.5 text-white">
+            <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-[11px] font-medium tracking-[0.14em] text-white/65 uppercase">
+                  행복시청 · 게시물 상세
+                </p>
+                <h2 class="mt-1 truncate text-base font-bold sm:text-lg">게시물 상세보기</h2>
+              </div>
               <button
                 type="button"
-                class="border border-[#0F2942] bg-[#0F2942] px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-                :disabled="downloading || !storedFileName"
-                @click="downloadAttachment"
+                class="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-white/25 text-white transition-colors hover:bg-white/10"
+                aria-label="닫기"
+                @click="emit('close')"
               >
-                {{ downloading ? '받는 중…' : '다운로드' }}
+                <X :size="16" />
               </button>
             </div>
           </div>
-          <p v-else class="border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
-            첨부파일이 없습니다.
-          </p>
-        </div>
 
-        <div class="min-h-48 border-b border-slate-300 px-4 py-5 text-sm leading-7 text-[#333333] whitespace-pre-line">
-          {{ notice.content }}
-        </div>
+          <div class="border-b border-slate-200 bg-[#f7f8fa] px-5 py-4">
+            <span
+              class="mb-2 inline-block border border-[#0F2942]/20 bg-white px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#0F2942]"
+            >
+              {{ categoryLabel }}
+            </span>
+            <h3 class="text-lg font-bold leading-snug text-[#0F172A] sm:text-xl">
+              {{ notice.title }}
+            </h3>
+            <dl class="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3 sm:gap-4 sm:text-sm">
+              <div class="flex gap-2">
+                <dt class="shrink-0 font-bold text-slate-500">작성부서</dt>
+                <dd>{{ notice.department }}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="shrink-0 font-bold text-slate-500">작성일</dt>
+                <dd>{{ formatDate(notice.date) }}</dd>
+              </div>
+              <div class="flex gap-2">
+                <dt class="shrink-0 font-bold text-slate-500">조회</dt>
+                <dd>{{ notice.viewCount }}</dd>
+              </div>
+              <div class="flex gap-2 sm:col-span-3">
+                <dt class="shrink-0 font-bold text-slate-500">담당 연락처</dt>
+                <dd>{{ notice.contact || '1600-0000' }}</dd>
+              </div>
+            </dl>
+          </div>
 
-        <div class="space-y-0 border-b border-slate-300 text-sm">
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 border-b border-slate-200 px-4 py-2.5 text-left hover:bg-slate-50 disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-white"
-            :disabled="!prevNotice"
-            @click="goPrev"
+          <div class="border-b border-slate-200 bg-[#eef1f4] px-5 py-3.5">
+            <p class="mb-2 text-[11px] font-bold tracking-wide text-slate-500">첨부파일</p>
+            <div
+              v-if="hasAttachment"
+              class="flex flex-wrap items-center justify-between gap-3 border border-slate-300/90 bg-white px-3.5 py-3 transition-colors hover:border-[#0F2942]/40"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <span
+                  class="inline-flex h-10 w-10 shrink-0 items-center justify-center border border-[#0F2942]/15 bg-[#0F2942]/[0.04] text-[#0F2942]"
+                  aria-hidden="true"
+                >
+                  <FileText :size="18" />
+                </span>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-[#0F172A]">{{ originalFileName }}</p>
+                  <p v-if="formattedFileSize" class="mt-0.5 text-xs text-slate-500">{{ formattedFileSize }}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 border border-[#0F2942] bg-[#0F2942] px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-[#163a5c] disabled:opacity-50"
+                :disabled="downloading || !storedFileName"
+                @click="downloadAttachment"
+              >
+                <Download :size="14" />
+                {{ downloading ? '받는 중…' : '다운로드' }}
+              </button>
+            </div>
+            <p
+              v-else
+              class="border border-dashed border-slate-300 bg-white/70 px-3.5 py-3.5 text-sm text-slate-500"
+            >
+              첨부파일이 없습니다.
+            </p>
+          </div>
+
+          <div
+            class="min-h-52 border-b border-slate-200 bg-white px-5 py-6 text-[15px] leading-8 text-[#2a2a2a] whitespace-pre-line sm:px-7"
           >
-            <span class="shrink-0 font-bold text-[#0F2942]">▲ 이전글</span>
-            <span class="truncate">{{ prevNotice ? prevNotice.title : '이전 글이 없습니다.' }}</span>
-          </button>
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-slate-50 disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-white"
-            :disabled="!nextNotice"
-            @click="goNext"
-          >
-            <span class="shrink-0 font-bold text-[#0F2942]">▼ 다음글</span>
-            <span class="truncate">{{ nextNotice ? nextNotice.title : '다음 글이 없습니다.' }}</span>
-          </button>
-        </div>
+            {{ notice.content }}
+          </div>
 
-        <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-50 px-4 py-4">
-          <template v-if="isAdmin">
+          <div class="divide-y divide-slate-200 border-b border-slate-200 text-sm">
             <button
               type="button"
-              class="border border-[#0F2942] bg-white px-6 py-2.5 text-sm font-bold text-[#0F2942] hover:bg-slate-100"
-              @click="emit('edit', notice)"
+              class="group flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-[#f7f8fa] disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-white"
+              :disabled="!prevNotice"
+              @click="goPrev"
             >
-              수정
+              <span class="inline-flex items-center gap-1 shrink-0 font-bold text-[#0F2942] group-disabled:text-slate-400">
+                <ChevronUp :size="14" />
+                이전글
+              </span>
+              <span class="truncate text-slate-700 group-disabled:text-slate-400">
+                {{ prevNotice ? prevNotice.title : '이전 글이 없습니다.' }}
+              </span>
             </button>
             <button
               type="button"
-              class="border border-red-700 bg-red-700 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-800"
-              @click="emit('delete', notice)"
+              class="group flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-[#f7f8fa] disabled:cursor-default disabled:text-slate-400 disabled:hover:bg-white"
+              :disabled="!nextNotice"
+              @click="goNext"
             >
-              삭제
+              <span class="inline-flex items-center gap-1 shrink-0 font-bold text-[#0F2942] group-disabled:text-slate-400">
+                <ChevronDown :size="14" />
+                다음글
+              </span>
+              <span class="truncate text-slate-700 group-disabled:text-slate-400">
+                {{ nextNotice ? nextNotice.title : '다음 글이 없습니다.' }}
+              </span>
             </button>
-          </template>
-          <button
-            type="button"
-            class="border border-[#0F2942] bg-[#0F2942] px-8 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-            @click="emit('close')"
-          >
-            목록으로 돌아가기
-          </button>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-2 bg-[#f7f8fa] px-5 py-4">
+            <template v-if="isAdmin">
+              <button
+                type="button"
+                class="border border-[#0F2942] bg-white px-6 py-2.5 text-sm font-bold text-[#0F2942] transition-colors hover:bg-[#0F2942] hover:text-white"
+                @click="emit('edit', notice)"
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                class="border border-red-800 bg-red-800 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-900"
+                @click="emit('delete', notice)"
+              >
+                삭제
+              </button>
+            </template>
+            <button
+              type="button"
+              class="border border-[#0F2942] bg-[#0F2942] px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#163a5c]"
+              @click="emit('close')"
+            >
+              목록으로 돌아가기
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
+
+<style scoped>
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.22s ease;
+}
+.modal-enter-active .modal-panel,
+.modal-leave-active .modal-panel {
+  transition:
+    transform 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+}
+</style>

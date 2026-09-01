@@ -202,10 +202,10 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <div class="grid gap-4 lg:grid-cols-[3fr_2fr]">
-      <section id="notice-board" class="border border-slate-300 bg-white">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 class="text-base font-bold text-[#0F2942]">{{ boardSectionTitle }}</h2>
+    <div class="grid gap-5 lg:grid-cols-[3fr_2fr]">
+      <section id="notice-board" class="border border-slate-300/90 bg-white shadow-[0_1px_0_rgba(15,41,66,0.04)]">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-gradient-to-b from-slate-50 to-[#f4f6f8] px-4 py-2.5">
+          <h2 class="text-base font-bold tracking-tight text-[#0F2942]">{{ boardSectionTitle }}</h2>
           <div class="flex" role="tablist" aria-label="게시판 분류">
             <button
               v-for="tab in tabs"
@@ -272,19 +272,19 @@ onUnmounted(() => {
               <tr
                 v-for="(row, idx) in notices"
                 :key="row.id"
-                class="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
+                class="cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#f4f7fa]"
                 @click="openNotice(row)"
               >
                 <td class="px-2 py-2.5 text-center text-slate-600">
                   {{ totalElements - (currentPage - 1) * pageSize - idx }}
                 </td>
                 <td class="px-2 py-2.5">
-                  <span class="inline-block max-w-full truncate rounded-none bg-slate-200 px-1.5 py-0.5 text-xs text-slate-700">
+                  <span class="inline-block max-w-full truncate border border-slate-300/80 bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
                     {{ row.category }}
                   </span>
                 </td>
                 <td class="px-2 py-2.5">
-                  <span class="block truncate font-medium text-[#0F2942]">{{ row.title }}</span>
+                  <span class="block truncate font-medium text-[#0F2942] transition-colors group-hover:underline">{{ row.title }}</span>
                 </td>
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ row.department }}</td>
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ formatDate(row.date) }}</td>
@@ -351,16 +351,16 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <aside id="minwon-quick" class="border border-slate-300 bg-white">
-        <div class="border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 class="text-base font-bold text-[#0F2942]">자주 찾는 민원</h2>
+      <aside id="minwon-quick" class="border border-slate-300/90 bg-white shadow-[0_1px_0_rgba(15,41,66,0.04)]">
+        <div class="border-b border-slate-300 bg-gradient-to-b from-slate-50 to-[#f4f6f8] px-4 py-2.5">
+          <h2 class="text-base font-bold tracking-tight text-[#0F2942]">자주 찾는 민원</h2>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
           <button
             v-for="item in quickLinks"
             :key="item.id"
             type="button"
-            class="cursor-pointer border-b border-r border-slate-300 px-2 py-5 text-center text-sm font-semibold text-[#0F2942] hover:bg-slate-100"
+            class="cursor-pointer border-b border-r border-slate-200 px-2 py-6 text-center text-sm font-semibold text-[#0F2942] transition-colors hover:bg-[#0F2942] hover:text-white"
             @click="openMinwon(item)"
           >
             {{ item.title }}
