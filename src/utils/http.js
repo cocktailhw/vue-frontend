@@ -1,11 +1,12 @@
 import axios from 'axios'
+import { getApiBaseUrl } from '../config/env'
 
 /**
  * Central HTTP client for portal APIs.
- * baseURL comes from Vite env (e.g. /api) so Nginx can proxy in each environment.
+ * baseURL: runtime env-config.js → Vite env → /api
  */
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: getApiBaseUrl() || import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
   headers: {
     Accept: 'application/json',
