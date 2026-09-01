@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { usePortalStore } from '../stores/portal'
@@ -94,7 +94,7 @@ const pageNumbers = computed(() => {
   return [current - 1, current, current + 1]
 })
 
-watch([searchQuery, activeBoardTab], () => {
+watch(activeBoardTab, () => {
   reloadNotices()
 })
 
@@ -239,8 +239,11 @@ async function loadData() {
 }
 
 onMounted(() => {
-  portalStore.restoreAdminSession()
   loadData()
+})
+
+onUnmounted(() => {
+  if (toastTimer) clearTimeout(toastTimer)
 })
 </script>
 

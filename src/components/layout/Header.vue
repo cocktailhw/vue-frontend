@@ -40,7 +40,8 @@ function onAdminModeClick() {
   adminLoginOpen.value = true
 }
 
-function onSearch() {
+async function onSearch() {
+  await portalStore.loadNotices(0)
   document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
