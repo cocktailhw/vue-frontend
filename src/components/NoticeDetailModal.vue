@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { FileText, X } from 'lucide-vue-next'
-import axios from 'axios'
+import http from '../utils/http'
+import { sanitizeFilename, sanitizeStoredFileName } from '../utils/file'
 
 const props = defineProps({
   open: {
@@ -50,12 +51,6 @@ const storedFileName = computed(() => props.notice?.storedFileName || '')
 
 const formattedFileSize = computed(() => formatFileSize(props.notice?.fileSize ?? props.notice?.attachmentSize))
 
-const downloadHref = computed(() => {
-  if (!storedFileName.value) return ''
-  const base = import.meta.env.VITE_API_BASE_URL || '/api'
-  return `${base}/v1/portal/files/download/${encodeURIComponent(storedFileName.value)}`
-})
-
 function formatFileSize(value) {
   if (value == null || value === '') return ''
   if (typeof value === 'string' && /[a-zA-Z]/.test(value)) return value
@@ -91,37 +86,31 @@ function formatDate(value) {
 }
 
 async function downloadAttachment() {
-  if (!storedFileName.value || !downloadHref.value) {
+  const safeStoredName = sanitizeStoredFileName(storedFileName.value)
+  if (!safeStoredName) {
     window.alert('다운로드할 첨부파일이 없습니다.')
     return
   }
 
   downloading.value = true
+  let blobUrl = ''
   try {
-    const token = localStorage.getItem('accessToken')
-    const response = await axios.get(downloadHref.value, {
-      responseType: 'blob',
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+    const blob = await http.get(
+      `/v1/portal/files/download/${encodeURIComponent(safeStoredName)}`,
+      { responseType: 'blob' },
+    )
 
-    const blobUrl = URL.createObjectURL(response.data)
+    blobUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = blobUrl
-    a.download = originalFileName.value || storedFileName.value
+    a.download = sanitizeFilename(originalFileName.value, safeStoredName)
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(blobUrl)
   } catch {
-    // JWT 불필요·직접 링크 가능한 경우 폴백
-    const a = document.createElement('a')
-    a.href = downloadHref.value
-    a.download = originalFileName.value || storedFileName.value
-    a.rel = 'noopener'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+    window.alert('파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.')
   } finally {
+    if (blobUrl) URL.revokeObjectURL(blobUrl)
     downloading.value = false
   }
 }
@@ -199,16 +188,6 @@ function goNext() {
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <a
-                v-if="downloadHref"
-                :href="downloadHref"
-                class="border border-slate-400 bg-white px-3 py-1.5 text-xs font-bold text-[#0F2942] hover:bg-slate-50"
-                :download="originalFileName"
-                target="_blank"
-                rel="noopener"
-              >
-                새 창
-              </a>
               <button
                 type="button"
                 class="border border-[#0F2942] bg-[#0F2942] px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"

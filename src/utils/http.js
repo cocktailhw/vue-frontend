@@ -49,6 +49,10 @@ http.interceptors.response.use(
   (response) => {
     const body = response.data
 
+    if (response.config?.responseType === 'blob' || body instanceof Blob) {
+      return body
+    }
+
     // ResultResponse / ApiResponse: axios response.data.data
     if (body && typeof body === 'object' && !Array.isArray(body) && 'data' in body) {
       return body.data
