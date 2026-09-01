@@ -1,14 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import http, { clearAccessToken, getAccessToken } from '../utils/http'
+import { parsePagedModel, sliceForPage } from '../utils/pagedModel'
 
-function asList(payload) {
-  if (Array.isArray(payload)) return payload
-  if (Array.isArray(payload?.items)) return payload.items
-  if (Array.isArray(payload?.content)) return payload.content
-  if (Array.isArray(payload?.list)) return payload.list
-  return []
-}
+const DEFAULT_PAGE_SIZE = 5
 
 function mapCategory(raw, index) {
   const text = String(raw ?? '').trim()
@@ -231,6 +226,12 @@ export const usePortalStore = defineStore('portal', () => {
   const fontScale = ref(100)
   const isAdmin = ref(false)
   const flashToast = ref('')
+  const pagination = ref({
+    page: 0,
+    size: DEFAULT_PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 1,
+  })
 
   const gnbBoardMap = {
     민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
@@ -339,16 +340,90 @@ export const usePortalStore = defineStore('portal', () => {
     return formData
   }
 
-  async function loadNotices() {
-    try {
-      const payload = await http.get('/v1/portal', {
-        params: { type: 'NOTICE' },
-      })
-      const list = asList(payload).map((item, index) => withMeta(item, index))
-      notices.value = list.length ? list : FALLBACK_NOTICES.map(withMeta)
-    } catch {
-      notices.value = FALLBACK_NOTICES.map(withMeta)
+  function filterFallbackNotices() {
+    const q = searchQuery.value.trim().toLowerCase()
+    const tab = activeBoardTab.value
+    return FALLBACK_NOTICES.filter((item) => {
+      const category = mapCategory(item.category, 0)
+      if (tab !== 'all' && category !== tab) return false
+      if (!q) return true
+      return (
+        String(item.title).toLowerCase().includes(q) ||
+        String(item.department).toLowerCase().includes(q) ||
+        String(item.content).toLowerCase().includes(q)
+      )
+    })
+  }
+
+  function applyPagedResult(items, pageMeta, pageIndex) {
+    notices.value = items.map((item, index) => withMeta(item, pageIndex * pageMeta.size + index))
+    pagination.value = {
+      page: pageMeta.number,
+      size: pageMeta.size || DEFAULT_PAGE_SIZE,
+      totalElements: pageMeta.totalElements,
+      totalPages: Math.max(1, pageMeta.totalPages),
     }
+  }
+
+  function applyFallbackPage(pageIndex = 0) {
+    const size = pagination.value.size || DEFAULT_PAGE_SIZE
+    const filtered = filterFallbackNotices()
+    const totalElements = filtered.length
+    const totalPages = Math.max(1, Math.ceil(totalElements / size))
+    const safePage = Math.min(Math.max(0, pageIndex), totalPages - 1)
+    const items = sliceForPage(filtered, safePage, size)
+    applyPagedResult(items, {
+      number: safePage,
+      size,
+      totalElements,
+      totalPages,
+    }, safePage)
+  }
+
+  async function loadNotices(pageIndex) {
+    const size = pagination.value.size || DEFAULT_PAGE_SIZE
+    const page = pageIndex ?? pagination.value.page ?? 0
+
+    const params = {
+      type: 'NOTICE',
+      page,
+      size,
+    }
+
+    if (activeBoardTab.value !== 'all') {
+      params.category = activeBoardTab.value
+    }
+
+    const keyword = searchQuery.value.trim()
+    if (keyword) {
+      params.keyword = keyword
+    }
+
+    try {
+      const payload = await http.get('/v1/portal', { params })
+      const { items, page: pageMeta } = parsePagedModel(payload)
+
+      if (!items.length && page > 0) {
+        await loadNotices(0)
+        return
+      }
+
+      if (items.length) {
+        applyPagedResult(items, pageMeta, pageMeta.number)
+        return
+      }
+
+      applyFallbackPage(page)
+    } catch {
+      applyFallbackPage(page)
+    }
+  }
+
+  async function goToNoticePage(pageOneBased) {
+    const target = Math.max(1, pageOneBased)
+    const zeroBased = target - 1
+    if (zeroBased === pagination.value.page && notices.value.length) return
+    await loadNotices(zeroBased)
   }
 
   async function createNotice(form) {
@@ -380,6 +455,7 @@ export const usePortalStore = defineStore('portal', () => {
     fontScale,
     isAdmin,
     flashToast,
+    pagination,
     setFontScale,
     showFlashToast,
     clearFlashToast,
@@ -390,6 +466,7 @@ export const usePortalStore = defineStore('portal', () => {
     selectGnb,
     setBoardTab,
     loadNotices,
+    goToNoticePage,
     createNotice,
     updateNotice,
     deleteNotice,

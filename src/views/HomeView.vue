@@ -8,12 +8,10 @@ import NoticeFormModal from '../components/NoticeFormModal.vue'
 import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
 const portalStore = usePortalStore()
-const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin, flashToast } =
+const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin, flashToast, pagination } =
   storeToRefs(portalStore)
 
 const isLoading = ref(false)
-const currentPage = ref(1)
-const pageSize = 5
 
 const modalOpen = ref(false)
 const selectedNotice = ref(null)
@@ -82,21 +80,10 @@ const quickLinks = [
   },
 ]
 
-const filteredNotices = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  const tab = activeBoardTab.value
-  return notices.value.filter((item) => {
-    if (tab !== 'all' && item.category !== tab) return false
-    if (!q) return true
-    return (
-      String(item.title).toLowerCase().includes(q) ||
-      String(item.department).toLowerCase().includes(q) ||
-      String(item.content).toLowerCase().includes(q)
-    )
-  })
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredNotices.value.length / pageSize)))
+const currentPage = computed(() => pagination.value.page + 1)
+const pageSize = computed(() => pagination.value.size)
+const totalElements = computed(() => pagination.value.totalElements)
+const totalPages = computed(() => Math.max(1, pagination.value.totalPages))
 
 const pageNumbers = computed(() => {
   const total = totalPages.value
@@ -107,18 +94,18 @@ const pageNumbers = computed(() => {
   return [current - 1, current, current + 1]
 })
 
-const pagedNotices = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredNotices.value.slice(start, start + pageSize)
-})
-
 watch([searchQuery, activeBoardTab], () => {
-  currentPage.value = 1
+  reloadNotices()
 })
 
-watch(totalPages, (total) => {
-  if (currentPage.value > total) currentPage.value = total
-})
+async function reloadNotices() {
+  isLoading.value = true
+  try {
+    await portalStore.loadNotices(0)
+  } finally {
+    isLoading.value = false
+  }
+}
 
 function showToast(message) {
   toast.value = { show: true, message }
@@ -145,7 +132,7 @@ function onTabClick(tabId) {
 }
 
 function openNotice(notice, list = null) {
-  const navList = list || filteredNotices.value
+  const navList = list || notices.value
   modalList.value = navList
   if (notice.id && notices.value.some((n) => n.id === notice.id)) {
     portalStore.bumpViews(notice.id)
@@ -232,15 +219,20 @@ function openMinwon(item) {
   minwonOpen.value = true
 }
 
-function goPage(page) {
-  if (page < 1 || page > totalPages.value) return
-  currentPage.value = page
+async function goPage(page) {
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return
+  isLoading.value = true
+  try {
+    await portalStore.goToNoticePage(page)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 async function loadData() {
   isLoading.value = true
   try {
-    await portalStore.loadNotices()
+    await portalStore.loadNotices(0)
   } finally {
     isLoading.value = false
   }
@@ -299,12 +291,12 @@ onMounted(() => {
         </div>
 
         <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
-          검색어 “{{ searchQuery.trim() }}” 결과 {{ filteredNotices.length }}건
+          검색어 “{{ searchQuery.trim() }}” 결과 {{ totalElements }}건
           (페이지당 {{ pageSize }}건)
         </p>
 
         <div v-if="isLoading" class="px-3 py-8 text-center text-sm text-slate-500">불러오는 중…</div>
-        <div v-else-if="!pagedNotices.length" class="px-3 py-10 text-center text-sm text-slate-500">
+        <div v-else-if="!notices.length" class="px-3 py-10 text-center text-sm text-slate-500">
           검색 조건에 맞는 게시물이 없습니다.
         </div>
 
@@ -332,13 +324,13 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr
-                v-for="(row, idx) in pagedNotices"
+                v-for="(row, idx) in notices"
                 :key="row.id"
                 class="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
                 @click="openNotice(row)"
               >
                 <td class="px-2 py-2.5 text-center text-slate-600">
-                  {{ filteredNotices.length - ((currentPage - 1) * pageSize + idx) }}
+                  {{ totalElements - (currentPage - 1) * pageSize - idx }}
                 </td>
                 <td class="px-2 py-2.5">
                   <span class="inline-block max-w-full truncate rounded-none bg-slate-200 px-1.5 py-0.5 text-xs text-slate-700">
@@ -375,7 +367,7 @@ onMounted(() => {
         </div>
 
         <div
-          v-if="!isLoading && filteredNotices.length"
+          v-if="!isLoading && totalElements > 0"
           class="flex items-center justify-center gap-1 border-t border-slate-300 bg-slate-50 px-3 py-2"
         >
           <button
