@@ -61,6 +61,7 @@ export const usePortalStore = defineStore('portal', () => {
   const boardSectionTitle = ref('시정소식 · 보도자료')
   const fontScale = ref(100)
   const isAdmin = ref(false)
+  const currentUser = ref(null)
   const flashToast = ref('')
   const pagination = ref({
     page: 0,
@@ -90,6 +91,39 @@ export const usePortalStore = defineStore('portal', () => {
     flashToast.value = ''
   }
 
+  function resolveIsAdmin(me) {
+    if (!me || typeof me !== 'object') return false
+
+    const role = String(me.role ?? me.userRole ?? me.authority ?? '').toUpperCase()
+    if (role.includes('ADMIN')) return true
+    if (role && (role.includes('USER') || role.includes('MEMBER') || role.includes('CITIZEN'))) {
+      return false
+    }
+
+    if (Array.isArray(me.roles) && me.roles.some((r) => String(r).toUpperCase().includes('ADMIN'))) {
+      return true
+    }
+    if (
+      Array.isArray(me.authorities) &&
+      me.authorities.some((a) => String(a?.authority ?? a).toUpperCase().includes('ADMIN'))
+    ) {
+      return true
+    }
+
+    // Seed admin account when role field is absent
+    return String(me.username ?? me.userId ?? me.loginId ?? '').toLowerCase() === 'admin'
+  }
+
+  /**
+   * Refresh session user from HttpOnly cookie via GET /auth/me.
+   */
+  async function fetchCurrentUser() {
+    const me = await http.get('/v1/auth/me')
+    currentUser.value = me && typeof me === 'object' ? me : null
+    isAdmin.value = resolveIsAdmin(currentUser.value)
+    return currentUser.value
+  }
+
   /**
    * Restore admin UI from HttpOnly session cookie via /auth/me.
    * Also clears leftover localStorage tokens from the old Bearer scheme.
@@ -97,18 +131,26 @@ export const usePortalStore = defineStore('portal', () => {
   async function restoreAdminSession() {
     clearLegacyAccessToken()
     try {
-      await http.get('/v1/auth/me')
-      isAdmin.value = true
+      await fetchCurrentUser()
     } catch {
+      currentUser.value = null
       isAdmin.value = false
     }
   }
 
+  /**
+   * DB-backed login — same endpoint for admin and general users.
+   * Payload: { username, password } from the form (no client-side bypass).
+   */
   async function loginAdmin(username, password) {
-    await http.post('/v1/auth/login', { username, password })
-    // Cookie is set by the server (HttpOnly); no token stored in JS.
-    isAdmin.value = true
-    showFlashToast('관리자 로그인에 성공했습니다.')
+    await http.post('/v1/auth/login', {
+      username: String(username ?? '').trim(),
+      password: String(password ?? ''),
+    })
+    await fetchCurrentUser()
+    showFlashToast(
+      isAdmin.value ? '관리자 로그인에 성공했습니다.' : '로그인되었습니다.',
+    )
   }
 
   /**
@@ -116,21 +158,26 @@ export const usePortalStore = defineStore('portal', () => {
    * @returns {Promise<unknown>} unwrapped API response body
    */
   async function signup(username, password) {
-    return http.post('/v1/auth/signup', { username, password })
+    return http.post('/v1/auth/signup', {
+      username: String(username ?? '').trim(),
+      password: String(password ?? ''),
+    })
   }
 
   async function logoutAdmin({ silent = false } = {}) {
     isAdmin.value = false
+    currentUser.value = null
     clearLegacyAccessToken()
-
-    if (silent) return
 
     try {
       await http.post('/v1/auth/logout')
     } catch {
       // Cookie may already be cleared / session expired — UI already public.
     }
-    showFlashToast('관리자 모드에서 로그아웃했습니다.')
+
+    if (!silent) {
+      showFlashToast('관리자 모드에서 로그아웃했습니다.')
+    }
   }
 
   function selectGnb(label) {
@@ -299,12 +346,14 @@ export const usePortalStore = defineStore('portal', () => {
     boardSectionTitle,
     fontScale,
     isAdmin,
+    currentUser,
     flashToast,
     pagination,
     setFontScale,
     showFlashToast,
     clearFlashToast,
     restoreAdminSession,
+    fetchCurrentUser,
     loginAdmin,
     signup,
     logoutAdmin,

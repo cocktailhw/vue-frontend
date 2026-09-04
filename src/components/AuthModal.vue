@@ -111,10 +111,14 @@ async function onSubmit() {
       errorMessage.value = '이미 사용 중인 아이디입니다.'
       return
     }
+    if (activeTab.value === 'login' && (status === 401 || status === 403)) {
+      errorMessage.value = '아이디 또는 비밀번호가 일치하지 않습니다.'
+      return
+    }
     errorMessage.value =
       activeTab.value === 'signup'
         ? '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.'
-        : '로그인에 실패했습니다. 아이디/비밀번호를 확인해 주세요.'
+        : '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.'
   } finally {
     submitting.value = false
   }

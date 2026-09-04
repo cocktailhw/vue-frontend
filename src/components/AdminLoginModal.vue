@@ -52,11 +52,23 @@ async function onSubmit() {
   submitting.value = true
   errorMessage.value = ''
   try {
+    // Real DB login — form values only (e.g. admin / admin1234!)
     await portalStore.loginAdmin(id, pw)
+
+    if (!portalStore.isAdmin) {
+      errorMessage.value = '관리자 권한이 없는 계정입니다.'
+      await portalStore.logoutAdmin({ silent: true })
+      return
+    }
+
     emit('success')
     emit('close')
-  } catch {
-    errorMessage.value = '로그인에 실패했습니다. 아이디/비밀번호를 확인해 주세요.'
+  } catch (error) {
+    const status = error?.response?.status
+    errorMessage.value =
+      status === 401 || status === 403
+        ? '아이디 또는 비밀번호가 일치하지 않습니다.'
+        : '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.'
   } finally {
     submitting.value = false
   }
@@ -106,7 +118,7 @@ async function onSubmit() {
               v-model="username"
               type="text"
               autocomplete="username"
-              class="w-full border border-slate-300 px-3 py-2"
+              class="w-full border border-slate-300 px-3 py-2 disabled:bg-slate-100"
               placeholder="관리자 아이디"
               :disabled="submitting"
             />
@@ -119,7 +131,7 @@ async function onSubmit() {
               v-model="password"
               type="password"
               autocomplete="current-password"
-              class="w-full border border-slate-300 px-3 py-2"
+              class="w-full border border-slate-300 px-3 py-2 disabled:bg-slate-100"
               placeholder="비밀번호"
               :disabled="submitting"
             />
@@ -130,7 +142,7 @@ async function onSubmit() {
           <div class="flex justify-end gap-2 border-t border-slate-300 pt-3">
             <button
               type="button"
-              class="border border-slate-300 bg-white px-5 py-2 font-bold"
+              class="border border-slate-300 bg-white px-5 py-2 font-bold disabled:opacity-60"
               :disabled="submitting"
               @click="emit('close')"
             >
