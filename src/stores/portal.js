@@ -111,6 +111,14 @@ export const usePortalStore = defineStore('portal', () => {
     showFlashToast('관리자 로그인에 성공했습니다.')
   }
 
+  /**
+   * Register a new account (DB-backed auth).
+   * @returns {Promise<unknown>} unwrapped API response body
+   */
+  async function signup(username, password) {
+    return http.post('/v1/auth/signup', { username, password })
+  }
+
   async function logoutAdmin({ silent = false } = {}) {
     isAdmin.value = false
     clearLegacyAccessToken()
@@ -298,6 +306,7 @@ export const usePortalStore = defineStore('portal', () => {
     clearFlashToast,
     restoreAdminSession,
     loginAdmin,
+    signup,
     logoutAdmin,
     selectGnb,
     setBoardTab,
