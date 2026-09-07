@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { FALLBACK_NOTICES } from '../data/fallbackNotices'
 import http, { clearLegacyAccessToken } from '../utils/http'
 import { parsePagedModel, sliceForPage } from '../utils/pagedModel'
+import { useUiStore } from './ui'
 
 const DEFAULT_PAGE_SIZE = 5
 
@@ -83,8 +84,12 @@ export const usePortalStore = defineStore('portal', () => {
     document.documentElement.style.fontSize = `${percent}%`
   }
 
-  function showFlashToast(message) {
-    flashToast.value = message
+  function showFlashToast(message, type = 'success') {
+    try {
+      useUiStore().showToast(message, type)
+    } catch {
+      flashToast.value = message
+    }
   }
 
   function clearFlashToast() {
@@ -118,7 +123,7 @@ export const usePortalStore = defineStore('portal', () => {
    * Refresh session user from HttpOnly cookie via GET /auth/me.
    */
   async function fetchCurrentUser() {
-    const me = await http.get('/v1/auth/me')
+    const me = await http.get('/v1/auth/me', { skipGlobalLoading: true })
     currentUser.value = me && typeof me === 'object' ? me : null
     isAdmin.value = resolveIsAdmin(currentUser.value)
     return currentUser.value
@@ -170,7 +175,7 @@ export const usePortalStore = defineStore('portal', () => {
     clearLegacyAccessToken()
 
     try {
-      await http.post('/v1/auth/logout')
+      await http.post('/v1/auth/logout', null, { skipGlobalLoading: true })
     } catch {
       // Cookie may already be cleared / session expired — UI already public.
     }
