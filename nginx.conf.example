@@ -1,12 +1,12 @@
-# Example only — do NOT put real backends or Basic Auth passwords in git.
+# Example only — do NOT put real backends or passwords in git.
 #
 # docker run ... \
 #   -e BACKEND_UPSTREAM="http://your-backend-service:8080" \
-#   -e SWAGGER_BASIC_USER="swagger" \
-#   -e SWAGGER_BASIC_PASSWORD="change-me"
+#   -e SWAGGER_USER="swagger" \
+#   -e SWAGGER_PASSWORD="change-me"
 #
 # Template placeholder: __BACKEND_UPSTREAM__
-# Auth file generated at start: /etc/nginx/.htpasswd
+# Auth file generated at container start: /etc/nginx/.htpasswd
 
 server {
     listen 80;
