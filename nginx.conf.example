@@ -1,11 +1,12 @@
-# Example only — do NOT put real cluster hostnames or personal IPs in git.
-# Pass secrets at runtime:
+# Example only — do NOT put real backends or Basic Auth passwords in git.
 #
 # docker run ... \
 #   -e BACKEND_UPSTREAM="http://your-backend-service:8080" \
-#   -e SWAGGER_WHITELIST_RULE="allow 203.0.113.10;"
+#   -e SWAGGER_BASIC_USER="swagger" \
+#   -e SWAGGER_BASIC_PASSWORD="change-me"
 #
-# Template placeholders: __BACKEND_UPSTREAM__, ${SWAGGER_WHITELIST_RULE}
+# Template placeholder: __BACKEND_UPSTREAM__
+# Auth file generated at start: /etc/nginx/.htpasswd
 
 server {
     listen 80;
@@ -25,10 +26,8 @@ server {
     }
 
     location /swagger-ui/ {
-        allow 127.0.0.1;
-        allow 10.0.0.0/8;
-        # ${SWAGGER_WHITELIST_RULE} injected at container start
-        deny all;
+        auth_basic "Restricted Access";
+        auth_basic_user_file /etc/nginx/.htpasswd;
         proxy_pass http://backend:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -36,10 +35,8 @@ server {
     }
 
     location /v3/api-docs/ {
-        allow 127.0.0.1;
-        allow 10.0.0.0/8;
-        # ${SWAGGER_WHITELIST_RULE}
-        deny all;
+        auth_basic "Restricted Access";
+        auth_basic_user_file /etc/nginx/.htpasswd;
         proxy_pass http://backend:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -47,10 +44,8 @@ server {
     }
 
     location = /v3/api-docs {
-        allow 127.0.0.1;
-        allow 10.0.0.0/8;
-        # ${SWAGGER_WHITELIST_RULE}
-        deny all;
+        auth_basic "Restricted Access";
+        auth_basic_user_file /etc/nginx/.htpasswd;
         proxy_pass http://backend:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

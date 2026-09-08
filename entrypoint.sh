@@ -9,26 +9,27 @@ echo "};" >> /usr/share/nginx/html/env-config.js
 
 # Backend upstream is injected at runtime (not stored in the public repo)
 BACKEND_UPSTREAM="${BACKEND_UPSTREAM:-http://backend:8080}"
-
-# Extra nginx allow lines for Swagger / OpenAPI (e.g. 'allow 203.0.113.10;')
-# Keep personal/public IPs out of git — pass via CI/CD or docker -e
-SWAGGER_WHITELIST_RULE="${SWAGGER_WHITELIST_RULE:-}"
-
-TMP_CONF="$(mktemp)"
 sed "s|__BACKEND_UPSTREAM__|${BACKEND_UPSTREAM}|g" \
-  /etc/nginx/nginx.conf.template > "$TMP_CONF"
+  /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/default.conf
 
-# Substitute ${SWAGGER_WHITELIST_RULE} (supports multi-line allow rules)
-export SWAGGER_WHITELIST_RULE
-if command -v envsubst >/dev/null 2>&1; then
-  envsubst '${SWAGGER_WHITELIST_RULE}' < "$TMP_CONF" > /etc/nginx/conf.d/default.conf
+# Swagger Basic Auth credentials (pass via CI/CD / K8s Secret — never commit)
+# SWAGGER_BASIC_USER / SWAGGER_BASIC_PASSWORD
+HTPASSWD_FILE=/etc/nginx/.htpasswd
+if [ -n "${SWAGGER_BASIC_USER:-}" ] && [ -n "${SWAGGER_BASIC_PASSWORD:-}" ]; then
+  if command -v openssl >/dev/null 2>&1; then
+    HASH="$(openssl passwd -apr1 "${SWAGGER_BASIC_PASSWORD}")"
+    echo "${SWAGGER_BASIC_USER}:${HASH}" > "$HTPASSWD_FILE"
+  elif command -v htpasswd >/dev/null 2>&1; then
+    htpasswd -nbB "${SWAGGER_BASIC_USER}" "${SWAGGER_BASIC_PASSWORD}" > "$HTPASSWD_FILE"
+  else
+    echo "ERROR: openssl or htpasswd required to build .htpasswd" >&2
+    exit 1
+  fi
+  chmod 644 "$HTPASSWD_FILE"
 else
-  # Fallback when gettext/envsubst is unavailable
-  awk -v rule="$SWAGGER_WHITELIST_RULE" '{
-    gsub(/\$\{SWAGGER_WHITELIST_RULE\}/, rule)
-    print
-  }' "$TMP_CONF" > /etc/nginx/conf.d/default.conf
+  # No credentials → all Basic Auth attempts fail (Swagger stays locked)
+  echo "# SWAGGER_BASIC_USER/PASSWORD not set" > "$HTPASSWD_FILE"
+  chmod 644 "$HTPASSWD_FILE"
 fi
-rm -f "$TMP_CONF"
 
 exec "$@"
