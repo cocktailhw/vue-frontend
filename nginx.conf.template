@@ -15,4 +15,43 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
+
+    # SpringDoc Swagger UI — IP whitelist (extra rules via SWAGGER_WHITELIST_RULE)
+    location /swagger-ui/ {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        ${SWAGGER_WHITELIST_RULE}
+        deny all;
+
+        proxy_pass __BACKEND_UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # OpenAPI docs (JSON/YAML) — IP whitelist (extra rules via SWAGGER_WHITELIST_RULE)
+    location /v3/api-docs/ {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        ${SWAGGER_WHITELIST_RULE}
+        deny all;
+
+        proxy_pass __BACKEND_UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Exact /v3/api-docs (no trailing slash) — same whitelist
+    location = /v3/api-docs {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        ${SWAGGER_WHITELIST_RULE}
+        deny all;
+
+        proxy_pass __BACKEND_UPSTREAM__;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
 }

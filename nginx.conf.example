@@ -1,9 +1,11 @@
-# Example only — do NOT put real cluster hostnames in git.
-# Copy to a local secret/CI variable and pass as BACKEND_UPSTREAM at runtime.
+# Example only — do NOT put real cluster hostnames or personal IPs in git.
+# Pass secrets at runtime:
 #
-# docker run ... -e BACKEND_UPSTREAM="http://your-backend-service:8080"
+# docker run ... \
+#   -e BACKEND_UPSTREAM="http://your-backend-service:8080" \
+#   -e SWAGGER_WHITELIST_RULE="allow 203.0.113.10;"
 #
-# Template placeholder: __BACKEND_UPSTREAM__
+# Template placeholders: __BACKEND_UPSTREAM__, ${SWAGGER_WHITELIST_RULE}
 
 server {
     listen 80;
@@ -16,6 +18,39 @@ server {
     }
 
     location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /swagger-ui/ {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        # ${SWAGGER_WHITELIST_RULE} injected at container start
+        deny all;
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /v3/api-docs/ {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        # ${SWAGGER_WHITELIST_RULE}
+        deny all;
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location = /v3/api-docs {
+        allow 127.0.0.1;
+        allow 10.0.0.0/8;
+        # ${SWAGGER_WHITELIST_RULE}
+        deny all;
         proxy_pass http://backend:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
