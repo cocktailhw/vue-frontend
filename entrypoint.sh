@@ -20,28 +20,15 @@ sed "s|__BACKEND_UPSTREAM__|${BACKEND_UPSTREAM}|g" \
 # ---------------------------------------------------------------------------
 HTPASSWD_FILE=/etc/nginx/.htpasswd
 
-hash_password() {
-  _plain="$1"
-  if command -v openssl >/dev/null 2>&1; then
-    # Apache MD5 (apr1) — compatible with nginx auth_basic_user_file
-    openssl passwd -apr1 "$_plain"
-    return 0
-  fi
-  if command -v htpasswd >/dev/null 2>&1; then
-    # -nbB: bcrypt hash line "user:hash" → take hash only via cut if needed
-    # Prefer openssl path; htpasswd used as full-line fallback in caller
-    return 1
-  fi
-  return 1
-}
-
 if [ -n "${SWAGGER_USER:-}" ] && [ -n "${SWAGGER_PASSWORD:-}" ]; then
-  if HASH="$(hash_password "${SWAGGER_PASSWORD}")"; then
-    echo "${SWAGGER_USER}:${HASH}" > "$HTPASSWD_FILE"
-  elif command -v htpasswd >/dev/null 2>&1; then
+  if command -v htpasswd >/dev/null 2>&1; then
+    # Prefer htpasswd from apache2-utils (installed in Dockerfile)
     htpasswd -nbB "${SWAGGER_USER}" "${SWAGGER_PASSWORD}" > "$HTPASSWD_FILE"
+  elif command -v openssl >/dev/null 2>&1 && openssl passwd -apr1 "test" >/dev/null 2>&1; then
+    HASH="$(openssl passwd -apr1 "${SWAGGER_PASSWORD}")"
+    echo "${SWAGGER_USER}:${HASH}" > "$HTPASSWD_FILE"
   else
-    echo "ERROR: need openssl or htpasswd to create ${HTPASSWD_FILE}" >&2
+    echo "ERROR: need htpasswd (apache2-utils) or openssl to create ${HTPASSWD_FILE}" >&2
     exit 1
   fi
   chmod 644 "$HTPASSWD_FILE"
