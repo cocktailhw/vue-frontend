@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DefaultLayout from '../components/layout/DefaultLayout.vue'
 import HomeView from '../views/HomeView.vue'
+import NoticeListView from '../views/board/NoticeListView.vue'
+import MinwonGuideView from '../views/minwon/MinwonGuideView.vue'
+import MyPageView from '../views/user/MyPageView.vue'
+import AdminDashboardView from '../views/admin/AdminDashboardView.vue'
+import { usePortalStore } from '../stores/portal'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,12 +19,52 @@ const router = createRouter({
           name: 'home',
           component: HomeView,
         },
+        {
+          path: 'notices',
+          name: 'notices',
+          component: NoticeListView,
+        },
+        {
+          path: 'minwon',
+          name: 'minwon',
+          component: MinwonGuideView,
+        },
+        {
+          path: 'mypage',
+          name: 'mypage',
+          component: MyPageView,
+          meta: { requiresAuth: true },
+        },
       ],
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboardView,
+      meta: { requiresAuth: true, requiresAdmin: true },
     },
   ],
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach(async (to) => {
+  const portalStore = usePortalStore()
+
+  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+    await portalStore.restoreAdminSession()
+  }
+
+  if (to.meta.requiresAuth && !portalStore.currentUser) {
+    return { name: 'home' }
+  }
+
+  if (to.meta.requiresAdmin && !portalStore.isAdmin) {
+    return { name: 'home' }
+  }
+
+  return true
 })
 
 export default router

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Search } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
@@ -7,8 +8,9 @@ import SitemapModal from '../SitemapModal.vue'
 import AuthModal from '../AuthModal.vue'
 import AdminLoginModal from '../AdminLoginModal.vue'
 
+const router = useRouter()
 const portalStore = usePortalStore()
-const { searchQuery, activeGnb, fontScale, isAdmin } = storeToRefs(portalStore)
+const { searchQuery, fontScale, isAdmin, currentUser } = storeToRefs(portalStore)
 
 const sitemapOpen = ref(false)
 const authOpen = ref(false)
@@ -16,11 +18,11 @@ const authMode = ref('login')
 const adminLoginOpen = ref(false)
 
 const gnbItems = [
-  { label: '민원안내' },
-  { label: '시정소식' },
-  { label: '정보공개' },
-  { label: '시민참여' },
-  { label: '시청안내' },
+  { label: '민원안내', to: '/minwon' },
+  { label: '시정소식', to: '/notices' },
+  { label: '정보공개', to: '/notices' },
+  { label: '시민참여', to: '/notices' },
+  { label: '시청안내', to: '/' },
 ]
 
 function setFont(percent) {
@@ -42,18 +44,24 @@ function onAdminModeClick() {
 
 async function onSearch() {
   await portalStore.loadNotices(0)
-  document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-function onGnbClick(label) {
-  portalStore.selectGnb(label)
+  if (router.currentRoute.value.name !== 'home') {
+    await router.push({ name: 'home' })
+  }
+  requestAnimationFrame(() => {
+    document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 function onSitemapSelect({ columnTitle }) {
-  if (columnTitle === '민원안내') portalStore.selectGnb('민원안내')
-  else if (columnTitle === '시정소식') portalStore.selectGnb('시정소식')
-  else if (columnTitle === '정보공개') portalStore.selectGnb('정보공개')
-  else portalStore.selectGnb('시청안내')
+  if (columnTitle === '민원안내') {
+    router.push('/minwon')
+    return
+  }
+  if (columnTitle === '시정소식' || columnTitle === '정보공개') {
+    router.push('/notices')
+    return
+  }
+  router.push('/')
 }
 </script>
 
@@ -96,6 +104,20 @@ function onSitemapSelect({ columnTitle }) {
               축소
             </button>
           </div>
+          <RouterLink
+            v-if="currentUser"
+            to="/mypage"
+            class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
+          >
+            마이페이지
+          </RouterLink>
+          <RouterLink
+            v-if="isAdmin"
+            to="/admin"
+            class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
+          >
+            관리자 대시보드
+          </RouterLink>
           <button
             type="button"
             class="px-2 font-bold"
@@ -146,14 +168,14 @@ function onSitemapSelect({ columnTitle }) {
     <nav class="border-b border-slate-800 bg-[#0F172A]" aria-label="주메뉴">
       <ul class="mx-auto flex max-w-[1100px] divide-x divide-slate-700 px-4 text-sm font-semibold text-white">
         <li v-for="item in gnbItems" :key="item.label" class="flex-1">
-          <button
-            type="button"
+          <RouterLink
+            :to="item.to"
             class="flex h-11 w-full items-center justify-center hover:bg-slate-800"
-            :class="activeGnb === item.label ? 'bg-slate-800 underline decoration-2 underline-offset-4' : ''"
-            @click="onGnbClick(item.label)"
+            :active-class="item.to === '/' ? '' : 'bg-slate-800 underline decoration-2 underline-offset-4'"
+            exact-active-class="bg-slate-800 underline decoration-2 underline-offset-4"
           >
             {{ item.label }}
-          </button>
+          </RouterLink>
         </li>
       </ul>
     </nav>
