@@ -60,6 +60,13 @@
 - [x] 홈(`HomeView`)에서 관리자 글쓰기·수정·삭제 UI 제거 (조회 전용)
 - [x] 공지 생성/수정/삭제는 `/admin`에서만 수행
 
+### Audit 후속 패치 (C1/C2, W1/W2/W4/W7)
+- [x] `isAdmin` — 백엔드 역할 claim만 사용 (username 휴리스틱 제거)
+- [x] 로그아웃 시 목록 캐시 초기화 + 보호 라우트 `home` 리다이렉트
+- [x] `restoreAdminSession` in-flight Promise 공유
+- [x] Header 검색 → `?q=` 홈 위임
+- [x] `alert()` → `ui.showToast` 치환
+
 ### API·기능 확장
 - [ ] 민원 실 API 연동 (현재 퀵메뉴는 정적 + 테스트 모달/`alert`)
 - [ ] 공지 외 게시판 유형(보도/고시 등) 전용 목록·필터 UX 고도화

@@ -13,15 +13,15 @@ import {
   Trash2,
   Users,
 } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
 import { usePortalStore } from '../../stores/portal'
+import { useUiStore } from '../../stores/ui'
 import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
 import NoticeFormModal from '../../components/NoticeFormModal.vue'
 
 const LIST_PAGE_SIZE = 10
 
-const router = useRouter()
 const portalStore = usePortalStore()
+const uiStore = useUiStore()
 const { notices, isAdmin, currentUser, flashToast, pagination } = storeToRefs(portalStore)
 
 const isLoading = ref(false)
@@ -149,7 +149,7 @@ async function onFormSubmit(formData) {
     editingNotice.value = null
     closeModal()
   } catch {
-    window.alert('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    uiStore.showToast('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
   } finally {
     isSubmitting.value = false
   }
@@ -162,7 +162,7 @@ async function onDeleteNotice(notice) {
     closeModal()
     showToast('게시물이 삭제되었습니다.')
   } catch {
-    window.alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    uiStore.showToast('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
   }
 }
 
@@ -188,7 +188,6 @@ async function goPage(page) {
 
 async function onLogout() {
   await portalStore.logoutAdmin()
-  router.push({ name: 'home' })
 }
 
 onMounted(async () => {

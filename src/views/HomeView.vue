@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
   Building2,
@@ -18,6 +19,7 @@ import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
 const HOME_PAGE_SIZE = 5
 
+const route = useRoute()
 const portalStore = usePortalStore()
 const { notices, searchQuery, activeBoardTab, boardSectionTitle, flashToast, pagination } =
   storeToRefs(portalStore)
@@ -71,6 +73,18 @@ async function reloadNotices() {
   } finally {
     isLoading.value = false
   }
+}
+
+/** Apply Header search query (?q=) then load — avoids duplicate load from Header. */
+async function applyRouteQueryAndLoad() {
+  const q = typeof route.query.q === 'string' ? route.query.q : Array.isArray(route.query.q) ? route.query.q[0] : ''
+  searchQuery.value = q ? String(q) : ''
+  await reloadNotices()
+  requestAnimationFrame(() => {
+    if (searchQuery.value.trim()) {
+      document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
 }
 
 function showToast(message) {
@@ -135,8 +149,16 @@ async function goPage(page) {
 }
 
 onMounted(() => {
-  reloadNotices()
+  applyRouteQueryAndLoad()
 })
+
+watch(
+  () => route.query.q,
+  () => {
+    if (route.name !== 'home') return
+    applyRouteQueryAndLoad()
+  },
+)
 
 onUnmounted(() => {
   if (toastTimer) clearTimeout(toastTimer)

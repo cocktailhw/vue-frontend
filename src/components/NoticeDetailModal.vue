@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { ChevronDown, ChevronUp, Download, FileText, X } from 'lucide-vue-next'
 import http from '../utils/http'
 import { sanitizeFilename, sanitizeStoredFileName } from '../utils/file'
+import { useUiStore } from '../stores/ui'
 
 const props = defineProps({
   open: {
@@ -26,6 +27,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'navigate', 'edit', 'delete'])
 
+const uiStore = useUiStore()
 const downloading = ref(false)
 
 const currentIndex = computed(() => {
@@ -90,7 +92,7 @@ function formatDate(value) {
 async function downloadAttachment() {
   const safeStoredName = sanitizeStoredFileName(storedFileName.value)
   if (!safeStoredName) {
-    window.alert('다운로드할 첨부파일이 없습니다.')
+    uiStore.showToast('다운로드할 첨부파일이 없습니다.', 'error')
     return
   }
 
@@ -110,7 +112,7 @@ async function downloadAttachment() {
     a.click()
     a.remove()
   } catch {
-    window.alert('파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    uiStore.showToast('파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
   } finally {
     if (blobUrl) URL.revokeObjectURL(blobUrl)
     downloading.value = false

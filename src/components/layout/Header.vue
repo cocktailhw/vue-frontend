@@ -43,10 +43,24 @@ function onAdminModeClick() {
 }
 
 async function onSearch() {
-  await portalStore.loadNotices(0)
-  if (router.currentRoute.value.name !== 'home') {
-    await router.push({ name: 'home' })
+  const q = String(searchQuery.value ?? '').trim()
+  const query = q ? { q } : {}
+  const onHome = router.currentRoute.value.name === 'home'
+  const currentQ = String(router.currentRoute.value.query.q ?? '')
+
+  // 다른 라우트: 홈으로 위임 (HomeView onMounted / query watch가 로드)
+  if (!onHome) {
+    await router.push({ name: 'home', query })
+    return
   }
+
+  // 홈에서 동일 검색어 재검색 → 직접 로드 / 검색어 변경 → URL 동기화 후 watch가 로드
+  if (currentQ === q) {
+    await portalStore.loadNotices(0, { size: 5 })
+  } else {
+    await router.replace({ name: 'home', query })
+  }
+
   requestAnimationFrame(() => {
     document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })

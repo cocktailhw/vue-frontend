@@ -1,6 +1,7 @@
 <script setup>
 import { onUnmounted, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useUiStore } from '../stores/ui'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -11,6 +12,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const uiStore = useUiStore()
 
 function onKeydown(event) {
   if (event.key === 'Escape') emit('close')
@@ -31,7 +33,10 @@ onUnmounted(() => {
 })
 
 function onApply() {
-  window.alert(`[신청 완료] "${props.item?.title}" 인터넷 발급/신청이 접수되었습니다. (테스트)`)
+  uiStore.showToast(
+    `[신청 완료] "${props.item?.title}" 인터넷 발급/신청이 접수되었습니다. (테스트)`,
+    'success',
+  )
   emit('close')
 }
 </script>

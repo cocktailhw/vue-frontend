@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useUiStore } from '../stores/ui'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -11,6 +12,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'submit'])
+
+const uiStore = useUiStore()
 
 const ALLOWED_EXT = ['.pdf', '.hwpx', '.hwp', '.doc', '.docx']
 
@@ -78,7 +81,7 @@ function handleFileChange(event) {
   const lower = file.name.toLowerCase()
   const ok = ALLOWED_EXT.some((ext) => lower.endsWith(ext))
   if (!ok) {
-    window.alert('허용 확장자: pdf, hwpx, hwp, doc, docx')
+    uiStore.showToast('허용 확장자: pdf, hwpx, hwp, doc, docx', 'error')
     event.target.value = ''
     selectedFile.value = null
     return
@@ -118,15 +121,15 @@ onUnmounted(() => {
 function onSubmit() {
   if (isSubmitting.value) return
   if (!form.value.title.trim()) {
-    window.alert('제목을 입력해 주세요.')
+    uiStore.showToast('제목을 입력해 주세요.', 'error')
     return
   }
   if (!form.value.department.trim()) {
-    window.alert('담당부서를 입력해 주세요.')
+    uiStore.showToast('담당부서를 입력해 주세요.', 'error')
     return
   }
   if (!form.value.content.trim()) {
-    window.alert('본문 내용을 입력해 주세요.')
+    uiStore.showToast('본문 내용을 입력해 주세요.', 'error')
     return
   }
   emit('submit', {

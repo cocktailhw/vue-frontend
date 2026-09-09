@@ -4,8 +4,21 @@ import { FALLBACK_NOTICES } from '../data/fallbackNotices'
 import http, { clearLegacyAccessToken } from '../utils/http'
 import { parsePagedModel, sliceForPage } from '../utils/pagedModel'
 import { useUiStore } from './ui'
+import router from '../router'
 
 const DEFAULT_PAGE_SIZE = 5
+
+/** In-flight /auth/me restore — shared so concurrent callers hit the API once. */
+let sessionPromise = null
+
+function createDefaultPagination() {
+  return {
+    page: 0,
+    size: DEFAULT_PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 1,
+  }
+}
 
 function mapCategory(raw, index) {
   const text = String(raw ?? '').trim()
@@ -64,12 +77,7 @@ export const usePortalStore = defineStore('portal', () => {
   const isAdmin = ref(false)
   const currentUser = ref(null)
   const flashToast = ref('')
-  const pagination = ref({
-    page: 0,
-    size: DEFAULT_PAGE_SIZE,
-    totalElements: 0,
-    totalPages: 1,
-  })
+  const pagination = ref(createDefaultPagination())
 
   const gnbBoardMap = {
     민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
@@ -96,14 +104,15 @@ export const usePortalStore = defineStore('portal', () => {
     flashToast.value = ''
   }
 
+  /**
+   * Admin only when backend role claims include ADMIN.
+   * No username-based heuristics.
+   */
   function resolveIsAdmin(me) {
     if (!me || typeof me !== 'object') return false
 
     const role = String(me.role ?? me.userRole ?? me.authority ?? '').toUpperCase()
     if (role.includes('ADMIN')) return true
-    if (role && (role.includes('USER') || role.includes('MEMBER') || role.includes('CITIZEN'))) {
-      return false
-    }
 
     if (Array.isArray(me.roles) && me.roles.some((r) => String(r).toUpperCase().includes('ADMIN'))) {
       return true
@@ -115,8 +124,7 @@ export const usePortalStore = defineStore('portal', () => {
       return true
     }
 
-    // Seed admin account when role field is absent
-    return String(me.username ?? me.userId ?? me.loginId ?? '').toLowerCase() === 'admin'
+    return false
   }
 
   /**
@@ -130,22 +138,29 @@ export const usePortalStore = defineStore('portal', () => {
   }
 
   /**
-   * Restore admin UI from HttpOnly session cookie via /auth/me.
-   * Also clears leftover localStorage tokens from the old Bearer scheme.
+   * Restore session from HttpOnly cookie via /auth/me.
+   * Concurrent callers share one in-flight Promise (single /auth/me).
    */
   async function restoreAdminSession() {
-    clearLegacyAccessToken()
-    try {
-      await fetchCurrentUser()
-    } catch {
-      currentUser.value = null
-      isAdmin.value = false
-    }
+    if (sessionPromise) return sessionPromise
+
+    sessionPromise = (async () => {
+      clearLegacyAccessToken()
+      try {
+        await fetchCurrentUser()
+      } catch {
+        currentUser.value = null
+        isAdmin.value = false
+      }
+    })().finally(() => {
+      sessionPromise = null
+    })
+
+    return sessionPromise
   }
 
   /**
    * DB-backed login — same endpoint for admin and general users.
-   * Payload: { username, password } from the form (no client-side bypass).
    */
   async function loginAdmin(username, password) {
     await http.post('/v1/auth/login', {
@@ -158,10 +173,6 @@ export const usePortalStore = defineStore('portal', () => {
     )
   }
 
-  /**
-   * Register a new account (DB-backed auth).
-   * @returns {Promise<unknown>} unwrapped API response body
-   */
   async function signup(username, password) {
     return http.post('/v1/auth/signup', {
       username: String(username ?? '').trim(),
@@ -172,7 +183,11 @@ export const usePortalStore = defineStore('portal', () => {
   async function logoutAdmin({ silent = false } = {}) {
     isAdmin.value = false
     currentUser.value = null
+    notices.value = []
+    searchQuery.value = ''
+    pagination.value = createDefaultPagination()
     clearLegacyAccessToken()
+    sessionPromise = null
 
     try {
       await http.post('/v1/auth/logout', null, { skipGlobalLoading: true })
@@ -180,8 +195,13 @@ export const usePortalStore = defineStore('portal', () => {
       // Cookie may already be cleared / session expired — UI already public.
     }
 
+    const route = router.currentRoute.value
+    if (route.meta.requiresAuth || route.meta.requiresAdmin) {
+      await router.replace({ name: 'home' })
+    }
+
     if (!silent) {
-      showFlashToast('관리자 모드에서 로그아웃했습니다.')
+      showFlashToast('로그아웃되었습니다.')
     }
   }
 
@@ -268,12 +288,16 @@ export const usePortalStore = defineStore('portal', () => {
     const totalPages = Math.max(1, Math.ceil(totalElements / size))
     const safePage = Math.min(Math.max(0, pageIndex), totalPages - 1)
     const items = sliceForPage(filtered, safePage, size)
-    applyPagedResult(items, {
-      number: safePage,
-      size,
-      totalElements,
-      totalPages,
-    }, safePage)
+    applyPagedResult(
+      items,
+      {
+        number: safePage,
+        size,
+        totalElements,
+        totalPages,
+      },
+      safePage,
+    )
   }
 
   async function loadNotices(pageIndex, options = {}) {
