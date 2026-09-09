@@ -14,11 +14,12 @@ import {
 import { BOARD_TABS, MINWON_QUICK_LINKS } from '../data/minwonQuickLinks'
 import { usePortalStore } from '../stores/portal'
 import NoticeDetailModal from '../components/NoticeDetailModal.vue'
-import NoticeFormModal from '../components/NoticeFormModal.vue'
 import MinwonDetailModal from '../components/MinwonDetailModal.vue'
 
+const HOME_PAGE_SIZE = 5
+
 const portalStore = usePortalStore()
-const { notices, searchQuery, activeBoardTab, boardSectionTitle, isAdmin, flashToast, pagination } =
+const { notices, searchQuery, activeBoardTab, boardSectionTitle, flashToast, pagination } =
   storeToRefs(portalStore)
 
 const isLoading = ref(false)
@@ -26,11 +27,6 @@ const isLoading = ref(false)
 const modalOpen = ref(false)
 const selectedNotice = ref(null)
 const modalList = ref([])
-
-const formOpen = ref(false)
-const formMode = ref('create')
-const editingNotice = ref(null)
-const isSubmitting = ref(false)
 
 const minwonOpen = ref(false)
 const selectedMinwon = ref(null)
@@ -71,7 +67,7 @@ watch(activeBoardTab, () => {
 async function reloadNotices() {
   isLoading.value = true
   try {
-    await portalStore.loadNotices(0)
+    await portalStore.loadNotices(0, { size: HOME_PAGE_SIZE })
   } finally {
     isLoading.value = false
   }
@@ -121,67 +117,6 @@ function closeModal() {
   modalOpen.value = false
   selectedNotice.value = null
   modalList.value = []
-}
-
-function openCreateForm() {
-  formMode.value = 'create'
-  editingNotice.value = null
-  formOpen.value = true
-}
-
-function openEditForm(notice) {
-  formMode.value = 'edit'
-  editingNotice.value = notice
-  formOpen.value = true
-  modalOpen.value = false
-}
-
-function closeForm() {
-  if (isSubmitting.value) return
-  formOpen.value = false
-  editingNotice.value = null
-}
-
-async function onFormSubmit(formData) {
-  if (isSubmitting.value) return
-  isSubmitting.value = true
-  try {
-    if (formMode.value === 'edit' && editingNotice.value?.id) {
-      await portalStore.updateNotice(editingNotice.value.id, formData)
-      showToast('게시물이 수정되었습니다.')
-    } else {
-      await portalStore.createNotice(formData)
-      showToast('게시물이 등록되었습니다.')
-    }
-    formOpen.value = false
-    editingNotice.value = null
-    closeModal()
-  } catch {
-    window.alert('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-async function onDeleteNotice(notice) {
-  if (!confirm('정말 삭제하시겠습니까?')) return
-  try {
-    await portalStore.deleteNotice(notice.id)
-    closeModal()
-    showToast('게시물이 삭제되었습니다.')
-  } catch {
-    window.alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
-  }
-}
-
-function onRowEdit(event, row) {
-  event.stopPropagation()
-  openEditForm(row)
-}
-
-async function onRowDelete(event, row) {
-  event.stopPropagation()
-  await onDeleteNotice(row)
 }
 
 function openMinwon(item) {
@@ -245,16 +180,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-if="isAdmin" class="border-b border-slate-200 bg-white px-3 py-2">
-          <button
-            type="button"
-            class="border border-[#0F2942] bg-[#0F2942] px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
-            @click="openCreateForm"
-          >
-            글쓰기 (신규 등록)
-          </button>
-        </div>
-
         <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
           검색어 “{{ searchQuery.trim() }}” 결과 {{ totalElements }}건
           (페이지당 {{ pageSize }}건)
@@ -274,7 +199,6 @@ onUnmounted(() => {
               <col class="w-28" />
               <col class="w-24" />
               <col class="w-16" />
-              <col v-if="isAdmin" class="w-24" />
             </colgroup>
             <thead>
               <tr class="border-b border-slate-300 bg-slate-100 text-xs text-slate-800">
@@ -284,7 +208,6 @@ onUnmounted(() => {
                 <th class="px-2 py-2.5 font-bold">담당부서</th>
                 <th class="px-2 py-2.5 font-bold">작성일</th>
                 <th class="px-2 py-2.5 text-center font-bold">조회</th>
-                <th v-if="isAdmin" class="px-2 py-2.5 text-center font-bold">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -310,24 +233,6 @@ onUnmounted(() => {
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ row.department }}</td>
                 <td class="truncate px-2 py-2.5 text-slate-600">{{ formatDate(row.date) }}</td>
                 <td class="px-2 py-2.5 text-center text-slate-600">{{ row.viewCount }}</td>
-                <td v-if="isAdmin" class="px-2 py-2.5">
-                  <div class="flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      class="text-xs text-slate-500 hover:text-slate-800 hover:underline"
-                      @click="onRowEdit($event, row)"
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      class="text-xs text-slate-500 hover:text-slate-800 hover:underline"
-                      @click="onRowDelete($event, row)"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </td>
               </tr>
             </tbody>
           </table>
@@ -406,19 +311,9 @@ onUnmounted(() => {
       :open="modalOpen"
       :notice="selectedNotice"
       :list="modalList"
-      :is-admin="isAdmin"
+      :is-admin="false"
       @close="closeModal"
       @navigate="navigateNotice"
-      @edit="openEditForm"
-      @delete="onDeleteNotice"
-    />
-    <NoticeFormModal
-      :open="formOpen"
-      :mode="formMode"
-      :notice="editingNotice"
-      :submitting="isSubmitting"
-      @close="closeForm"
-      @submit="onFormSubmit"
     />
     <MinwonDetailModal
       :open="minwonOpen"

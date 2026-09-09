@@ -51,10 +51,14 @@
 ## 진행 중 / 예정된 작업
 
 ### Placeholder View 실구현
-- [ ] `NoticeListView` (`/notices`) — 전체 공지 목록 UI·페이징·상세 연동
+- [x] `NoticeListView` (`/notices`) — 전체 공지 목록 UI·페이징·상세 연동
 - [ ] `MinwonGuideView` (`/minwon`) — 종합 민원 안내·카테고리·절차 UI
-- [ ] `MyPageView` (`/mypage`) — 프로필·세션 정보·비밀번호 변경 등
-- [ ] `AdminDashboardView` (`/admin`) — 백오피스 대시보드·공지 관리 화면 이전/확장
+- [x] `MyPageView` (`/mypage`) — 프로필 카드 + 민원 Mock 내역
+- [x] `AdminDashboardView` (`/admin`) — 백오피스 레이아웃·통계·공지 CRUD 이관
+
+### 홈 / CRUD 역할 분리
+- [x] 홈(`HomeView`)에서 관리자 글쓰기·수정·삭제 UI 제거 (조회 전용)
+- [x] 공지 생성/수정/삭제는 `/admin`에서만 수행
 
 ### API·기능 확장
 - [ ] 민원 실 API 연동 (현재 퀵메뉴는 정적 + 테스트 모달/`alert`)

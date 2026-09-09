@@ -276,7 +276,14 @@ export const usePortalStore = defineStore('portal', () => {
     }, safePage)
   }
 
-  async function loadNotices(pageIndex) {
+  async function loadNotices(pageIndex, options = {}) {
+    if (options.size != null && Number(options.size) > 0) {
+      pagination.value = {
+        ...pagination.value,
+        size: Number(options.size),
+      }
+    }
+
     const size = pagination.value.size || DEFAULT_PAGE_SIZE
     const page = pageIndex ?? pagination.value.page ?? 0
 
