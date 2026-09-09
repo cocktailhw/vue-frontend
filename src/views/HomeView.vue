@@ -1,7 +1,19 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Home,
+  Landmark,
+  Pencil,
+  Plus,
+  Stamp,
+  Trash2,
+  Wallet,
+} from 'lucide-vue-next'
 import { BOARD_TABS, MINWON_QUICK_LINKS } from '../data/minwonQuickLinks'
 import { usePortalStore } from '../stores/portal'
 import NoticeDetailModal from '../components/NoticeDetailModal.vue'
@@ -31,6 +43,15 @@ let toastTimer = null
 
 const tabs = BOARD_TABS
 const quickLinks = MINWON_QUICK_LINKS
+
+const minwonIcons = {
+  'id-copy': FileText,
+  tax: Wallet,
+  building: Building2,
+  rent: Landmark,
+  move: Home,
+  seal: Stamp,
+}
 
 const currentPage = computed(() => pagination.value.page + 1)
 const pageSize = computed(() => pagination.value.size)
@@ -77,6 +98,19 @@ function formatDate(value) {
   if (!value) return '—'
   const text = String(value)
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
+}
+
+function categoryBadgeClass(category) {
+  switch (category) {
+    case '보도자료':
+      return 'bg-violet-50 text-violet-600'
+    case '고시공고':
+      return 'bg-amber-50 text-amber-700'
+    case '공지사항':
+      return 'bg-blue-50 text-blue-600'
+    default:
+      return 'bg-slate-50 text-slate-600'
+  }
 }
 
 function onTabClick(tabId) {
@@ -191,32 +225,36 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1100px] px-4 py-6 text-[#333333]">
+  <main class="mx-auto max-w-[1100px] px-4 py-8 text-slate-700">
     <Transition name="toast">
       <div
         v-if="toast.show"
-        class="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 border-2 border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white shadow-lg"
+        class="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg"
         role="status"
       >
         {{ toast.message }}
       </div>
     </Transition>
 
-    <div class="grid gap-5 lg:grid-cols-[3fr_2fr]">
-      <section id="notice-board" class="border border-slate-300/90 bg-white shadow-[0_1px_0_rgba(15,41,66,0.04)]">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-300 bg-gradient-to-b from-slate-50 to-[#f4f6f8] px-4 py-2.5">
-          <h2 class="text-base font-bold tracking-tight text-[#0F2942]">{{ boardSectionTitle }}</h2>
-          <div class="flex" role="tablist" aria-label="게시판 분류">
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      <!-- Notice board -->
+      <section id="notice-board" class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+          <div>
+            <p class="text-xs font-medium tracking-wide text-slate-400">알림마당</p>
+            <h2 class="mt-0.5 text-lg font-bold text-slate-900">{{ boardSectionTitle }}</h2>
+          </div>
+          <div class="flex flex-wrap gap-1 rounded-full bg-slate-50 p-1" role="tablist" aria-label="게시판 분류">
             <button
               v-for="tab in tabs"
               :key="tab.id"
               type="button"
               role="tab"
-              class="-ml-px border border-slate-300 px-2.5 py-1 text-xs font-semibold first:ml-0"
+              class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
               :class="
                 activeBoardTab === tab.id
-                  ? 'relative z-[1] border-[#0F2942] bg-[#0F2942] text-white'
-                  : 'bg-white text-[#333333] hover:bg-slate-50'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-white hover:text-slate-800'
               "
               :aria-selected="activeBoardTab === tab.id"
               @click="onTabClick(tab.id)"
@@ -226,23 +264,25 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-if="isAdmin" class="border-b border-slate-300 bg-white px-3 py-2">
+        <div v-if="isAdmin" class="border-b border-gray-100 px-5 py-3">
           <button
             type="button"
-            class="border border-[#0F2942] bg-[#0F2942] px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             @click="openCreateForm"
           >
-            글쓰기 (신규 등록)
+            <Plus :size="16" />
+            글쓰기
           </button>
         </div>
 
-        <p v-if="searchQuery.trim()" class="border-b border-slate-200 px-3 py-2 text-xs text-slate-600">
-          검색어 “{{ searchQuery.trim() }}” 결과 {{ totalElements }}건
+        <p v-if="searchQuery.trim()" class="border-b border-gray-100 px-5 py-2.5 text-xs text-slate-500">
+          검색어 “{{ searchQuery.trim() }}” 결과
+          <span class="font-semibold text-slate-800">{{ totalElements }}</span>건
           (페이지당 {{ pageSize }}건)
         </p>
 
-        <div v-if="isLoading" class="px-3 py-8 text-center text-sm text-slate-500">불러오는 중…</div>
-        <div v-else-if="!notices.length" class="px-3 py-10 text-center text-sm text-slate-500">
+        <div v-if="isLoading" class="px-5 py-12 text-center text-sm text-slate-400">불러오는 중…</div>
+        <div v-else-if="!notices.length" class="px-5 py-14 text-center text-sm text-slate-400">
           검색 조건에 맞는 게시물이 없습니다.
         </div>
 
@@ -250,60 +290,73 @@ onUnmounted(() => {
           <table class="w-full min-w-[36rem] table-fixed border-collapse text-left text-sm">
             <colgroup>
               <col class="w-12" />
-              <col class="w-20" />
+              <col class="w-[5.5rem]" />
               <col />
               <col class="w-24" />
               <col class="w-24" />
               <col class="w-14" />
-              <col v-if="isAdmin" class="w-28" />
+              <col v-if="isAdmin" class="w-20" />
             </colgroup>
             <thead>
-              <tr class="border-t-2 border-slate-800 border-b border-slate-300 bg-slate-100 text-xs">
-                <th class="px-2 py-2.5 font-bold">번호</th>
-                <th class="px-2 py-2.5 font-bold">분류</th>
-                <th class="px-2 py-2.5 font-bold">제목</th>
-                <th class="px-2 py-2.5 font-bold">담당부서</th>
-                <th class="px-2 py-2.5 font-bold">작성일</th>
-                <th class="px-2 py-2.5 font-bold">조회</th>
-                <th v-if="isAdmin" class="px-2 py-2.5 font-bold">관리</th>
+              <tr class="border-b border-gray-100 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+                <th class="px-3 py-3 font-semibold">번호</th>
+                <th class="px-3 py-3 font-semibold">분류</th>
+                <th class="px-3 py-3 font-semibold">제목</th>
+                <th class="px-3 py-3 font-semibold">담당부서</th>
+                <th class="px-3 py-3 font-semibold">작성일</th>
+                <th class="px-3 py-3 font-semibold">조회</th>
+                <th v-if="isAdmin" class="px-2 py-3 font-semibold">
+                  <span class="sr-only">관리</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="(row, idx) in notices"
                 :key="row.id"
-                class="cursor-pointer border-b border-slate-200 transition-colors hover:bg-[#f4f7fa]"
+                class="group cursor-pointer border-b border-gray-100 transition-colors last:border-b-0 hover:bg-gray-50"
                 @click="openNotice(row)"
               >
-                <td class="px-2 py-2.5 text-center text-slate-600">
+                <td class="px-3 py-3.5 text-center text-slate-400">
                   {{ totalElements - (currentPage - 1) * pageSize - idx }}
                 </td>
-                <td class="px-2 py-2.5">
-                  <span class="inline-block max-w-full truncate border border-slate-300/80 bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
+                <td class="px-3 py-3.5">
+                  <span
+                    class="inline-flex max-w-full truncate rounded-full px-2 py-1 text-xs font-medium"
+                    :class="categoryBadgeClass(row.category)"
+                  >
                     {{ row.category }}
                   </span>
                 </td>
-                <td class="px-2 py-2.5">
-                  <span class="block truncate font-medium text-[#0F2942] transition-colors group-hover:underline">{{ row.title }}</span>
+                <td class="px-3 py-3.5">
+                  <span class="block truncate font-medium text-slate-800 group-hover:text-blue-600">
+                    {{ row.title }}
+                  </span>
                 </td>
-                <td class="truncate px-2 py-2.5 text-slate-600">{{ row.department }}</td>
-                <td class="truncate px-2 py-2.5 text-slate-600">{{ formatDate(row.date) }}</td>
-                <td class="px-2 py-2.5 text-center text-slate-600">{{ row.viewCount }}</td>
-                <td v-if="isAdmin" class="px-2 py-2.5">
-                  <div class="flex justify-center gap-1">
+                <td class="truncate px-3 py-3.5 text-slate-500">{{ row.department }}</td>
+                <td class="truncate px-3 py-3.5 text-slate-500">{{ formatDate(row.date) }}</td>
+                <td class="px-3 py-3.5 text-center text-slate-400">{{ row.viewCount }}</td>
+                <td v-if="isAdmin" class="px-2 py-3.5">
+                  <div
+                    class="flex justify-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100"
+                  >
                     <button
                       type="button"
-                      class="border border-[#0F2942] px-1.5 py-0.5 text-xs font-bold text-[#0F2942] hover:bg-slate-100"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
+                      title="수정"
+                      aria-label="수정"
                       @click="onRowEdit($event, row)"
                     >
-                      수정
+                      <Pencil :size="15" />
                     </button>
                     <button
                       type="button"
-                      class="border border-red-700 px-1.5 py-0.5 text-xs font-bold text-red-700 hover:bg-red-50"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                      title="삭제"
+                      aria-label="삭제"
                       @click="onRowDelete($event, row)"
                     >
-                      삭제
+                      <Trash2 :size="15" />
                     </button>
                   </div>
                 </td>
@@ -314,26 +367,26 @@ onUnmounted(() => {
 
         <div
           v-if="!isLoading && totalElements > 0"
-          class="flex items-center justify-center gap-1 border-t border-slate-300 bg-slate-50 px-3 py-2"
+          class="flex items-center justify-center gap-1.5 border-t border-gray-100 bg-slate-50/60 px-4 py-3"
         >
           <button
             type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white disabled:opacity-40"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-100 bg-white text-slate-600 transition hover:bg-white hover:shadow-sm disabled:opacity-40"
             :disabled="currentPage <= 1"
             aria-label="이전 페이지"
             @click="goPage(currentPage - 1)"
           >
-            <ChevronLeft :size="14" />
+            <ChevronLeft :size="16" />
           </button>
           <button
             v-for="page in pageNumbers"
             :key="page"
             type="button"
-            class="inline-flex h-7 min-w-7 items-center justify-center border px-2 text-xs font-semibold"
+            class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-semibold transition"
             :class="
               page === currentPage
-                ? 'border-[#0F2942] bg-[#0F2942] text-white'
-                : 'border-slate-300 bg-white text-[#333333] hover:bg-slate-50'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'border border-gray-100 bg-white text-slate-600 hover:bg-gray-50'
             "
             @click="goPage(page)"
           >
@@ -341,32 +394,43 @@ onUnmounted(() => {
           </button>
           <button
             type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-slate-300 bg-white disabled:opacity-40"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-100 bg-white text-slate-600 transition hover:bg-white hover:shadow-sm disabled:opacity-40"
             :disabled="currentPage >= totalPages"
             aria-label="다음 페이지"
             @click="goPage(currentPage + 1)"
           >
-            <ChevronRight :size="14" />
+            <ChevronRight :size="16" />
           </button>
         </div>
       </section>
 
-      <aside id="minwon-quick" class="border border-slate-300/90 bg-white shadow-[0_1px_0_rgba(15,41,66,0.04)]">
-        <div class="border-b border-slate-300 bg-gradient-to-b from-slate-50 to-[#f4f6f8] px-4 py-2.5">
-          <h2 class="text-base font-bold tracking-tight text-[#0F2942]">자주 찾는 민원</h2>
+      <!-- Minwon quick cards -->
+      <aside id="minwon-quick" class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="mb-4">
+          <p class="text-xs font-medium tracking-wide text-slate-400">민원 서비스</p>
+          <h2 class="mt-0.5 text-lg font-bold text-slate-900">자주 찾는 민원</h2>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+
+        <div class="grid grid-cols-2 gap-3">
           <button
             v-for="item in quickLinks"
             :key="item.id"
             type="button"
-            class="cursor-pointer border-b border-r border-slate-200 px-2 py-6 text-center text-sm font-semibold text-[#0F2942] transition-colors hover:bg-[#0F2942] hover:text-white"
+            class="group flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-5 text-center transition hover:-translate-y-1 hover:border-blue-100 hover:shadow-lg"
             @click="openMinwon(item)"
           >
-            {{ item.title }}
+            <span
+              class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white"
+            >
+              <component :is="minwonIcons[item.id] || FileText" :size="24" stroke-width="1.75" />
+            </span>
+            <span class="text-sm font-semibold text-slate-800 group-hover:text-blue-700">
+              {{ item.title }}
+            </span>
           </button>
         </div>
-        <p class="border-t border-slate-300 px-3 py-2 text-xs text-slate-500">
+
+        <p class="mt-4 text-xs leading-relaxed text-slate-400">
           ※ 항목을 클릭하면 구비서류와 신청 안내를 확인할 수 있습니다.
         </p>
       </aside>
