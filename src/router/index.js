@@ -26,6 +26,16 @@ const router = createRouter({
           component: NoticeListView,
         },
         {
+          path: 'info',
+          name: 'info',
+          component: NoticeListView,
+        },
+        {
+          path: 'participate',
+          name: 'participate',
+          component: NoticeListView,
+        },
+        {
           path: 'minwon',
           name: 'minwon',
           component: MinwonGuideView,

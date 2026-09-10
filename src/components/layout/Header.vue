@@ -18,32 +18,24 @@ const authOpen = ref(false)
 const authMode = ref('login')
 const adminLoginOpen = ref(false)
 
-/** Local only — does not drive /notices list until submit → home ?q= */
+/** Local only — submit pushes home ?q= ; does not leak into board lists */
 const keywordInput = ref('')
 
 const gnbItems = [
   { label: '민원안내', to: '/minwon' },
   { label: '시정소식', to: '/notices' },
-  { label: '정보공개', to: '/notices' },
-  { label: '시민참여', to: '/notices' },
+  { label: '정보공개', to: '/info' },
+  { label: '시민참여', to: '/participate' },
   { label: '시청안내', to: '/' },
 ]
 
 const gnbActiveClass = 'bg-slate-800 underline decoration-2 underline-offset-4'
 
 function isGnbActive(item) {
-  const path = route.path
-
-  if (item.to === '/notices') {
-    // Shared /notices route: only 「시정소식」 shows active underline
-    return path === '/notices' && item.label === '시정소식'
-  }
-
   if (item.to === '/') {
-    return path === '/' || route.name === 'home'
+    return route.path === '/'
   }
-
-  return path === item.to || path.startsWith(`${item.to}/`)
+  return route.path.startsWith(item.to)
 }
 
 function syncKeywordFromRoute() {
@@ -92,8 +84,16 @@ function onSitemapSelect({ columnTitle }) {
     router.push('/minwon')
     return
   }
-  if (columnTitle === '시정소식' || columnTitle === '정보공개') {
+  if (columnTitle === '시정소식') {
     router.push('/notices')
+    return
+  }
+  if (columnTitle === '정보공개') {
+    router.push('/info')
+    return
+  }
+  if (columnTitle === '시민참여') {
+    router.push('/participate')
     return
   }
   router.push('/')
@@ -221,11 +221,7 @@ function onSitemapSelect({ columnTitle }) {
     <nav class="border-b border-slate-800 bg-[#0F172A]" aria-label="주메뉴">
       <ul class="mx-auto flex max-w-[1100px] divide-x divide-slate-700 px-4 text-sm font-semibold text-white">
         <li v-for="item in gnbItems" :key="item.label" class="flex-1">
-          <RouterLink
-            v-slot="{ href, navigate }"
-            :to="item.to"
-            custom
-          >
+          <RouterLink v-slot="{ href, navigate }" :to="item.to" custom>
             <a
               :href="href"
               class="flex h-11 w-full items-center justify-center hover:bg-slate-800"

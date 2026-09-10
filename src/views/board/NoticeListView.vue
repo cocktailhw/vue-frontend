@@ -8,6 +8,7 @@ import { usePortalStore } from '../../stores/portal'
 import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
 
 const LIST_PAGE_SIZE = 10
+const BOARD_ROUTE_NAMES = new Set(['notices', 'info', 'participate'])
 
 const route = useRoute()
 const router = useRouter()
@@ -23,6 +24,26 @@ const selectedNotice = ref(null)
 const modalList = ref([])
 
 const categoryOptions = BOARD_TABS
+
+const pageHeading = computed(() => {
+  const path = route.path
+  if (path.includes('/info')) {
+    return {
+      title: '정보공개',
+      description: '행복특별시의 투명한 행정 정보를 공개합니다.',
+    }
+  }
+  if (path.includes('/participate')) {
+    return {
+      title: '시민참여',
+      description: '시민 여러분의 소중한 의견을 듣습니다.',
+    }
+  }
+  return {
+    title: '시정소식',
+    description: '시정 공지·고시공고·보도자료를 한곳에서 확인할 수 있습니다.',
+  }
+})
 
 const currentPage = computed(() => pagination.value.page + 1)
 const pageSize = computed(() => pagination.value.size)
@@ -44,6 +65,10 @@ function pageFromRoute() {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
 }
 
+function isBoardRoute() {
+  return BOARD_ROUTE_NAMES.has(String(route.name ?? ''))
+}
+
 async function loadFromRoute() {
   const page = pageFromRoute()
   isLoading.value = true
@@ -55,9 +80,9 @@ async function loadFromRoute() {
 }
 
 watch(
-  () => route.query.page,
+  () => [route.name, route.path, route.query.page],
   () => {
-    if (route.name !== 'notices') return
+    if (!isBoardRoute()) return
     loadFromRoute()
   },
   { immediate: true },
@@ -80,8 +105,7 @@ async function syncQueryAndReload({ page = 1, resetPage = false } = {}) {
   else query.page = String(nextPage)
 
   const samePage = pageFromRoute() === nextPage
-  await router.push({ name: 'notices', query })
-  // Same page param → watch may not fire; load explicitly
+  await router.push({ name: route.name, query })
   if (samePage) await loadFromRoute()
 }
 
@@ -130,7 +154,7 @@ async function goPage(page) {
   await syncQueryAndReload({ page })
 }
 
-// Board search is local — do not inherit Header/global leftover keyword on enter
+// Board-local search — do not inherit Header leftover keyword
 categoryFilter.value = 'all'
 portalStore.setBoardTab('all')
 searchQuery.value = ''
@@ -140,8 +164,8 @@ localKeyword.value = ''
 <template>
   <main class="mx-auto max-w-[1100px] px-4 py-8 text-[#333333]">
     <div class="mb-4 border-b-2 border-slate-800 pb-3">
-      <h1 class="text-xl font-bold text-[#0F2942]">전체 공지사항</h1>
-      <p class="mt-1 text-sm text-slate-600">시정 공지·고시공고·보도자료를 한곳에서 확인할 수 있습니다.</p>
+      <h1 class="text-xl font-bold text-[#0F2942]">{{ pageHeading.title }}</h1>
+      <p class="mt-1 text-sm text-slate-600">{{ pageHeading.description }}</p>
     </div>
 
     <section class="mb-4 border border-slate-200 bg-white p-4">
