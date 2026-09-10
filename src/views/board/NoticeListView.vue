@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ChevronLeft, ChevronRight, Filter, Search } from 'lucide-vue-next'
 import { BOARD_TABS } from '../../data/minwonQuickLinks'
@@ -8,6 +9,8 @@ import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
 
 const LIST_PAGE_SIZE = 10
 
+const route = useRoute()
+const router = useRouter()
 const portalStore = usePortalStore()
 const { notices, searchQuery, activeBoardTab, pagination } = storeToRefs(portalStore)
 
@@ -35,18 +38,34 @@ const pageNumbers = computed(() => {
   return [current - 2, current - 1, current, current + 1, current + 2]
 })
 
-watch(activeBoardTab, (tab) => {
-  categoryFilter.value = tab
-})
+function pageFromRoute() {
+  const raw = route.query.page
+  const n = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
+}
 
-async function reload(pageIndex = 0) {
+async function loadFromRoute() {
+  const page = pageFromRoute()
   isLoading.value = true
   try {
-    await portalStore.loadNotices(pageIndex, { size: LIST_PAGE_SIZE })
+    await portalStore.loadNotices(page - 1, { size: LIST_PAGE_SIZE })
   } finally {
     isLoading.value = false
   }
 }
+
+watch(
+  () => route.query.page,
+  () => {
+    if (route.name !== 'notices') return
+    loadFromRoute()
+  },
+  { immediate: true },
+)
+
+watch(activeBoardTab, (tab) => {
+  categoryFilter.value = tab
+})
 
 function formatDate(value) {
   if (!value) return '—'
@@ -54,15 +73,27 @@ function formatDate(value) {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
 
+async function syncQueryAndReload({ page = 1, resetPage = false } = {}) {
+  const nextPage = resetPage ? 1 : page
+  const query = { ...route.query }
+  if (nextPage <= 1) delete query.page
+  else query.page = String(nextPage)
+
+  const samePage = pageFromRoute() === nextPage
+  await router.push({ name: 'notices', query })
+  // Same page param → watch may not fire; load explicitly
+  if (samePage) await loadFromRoute()
+}
+
 async function onSearch() {
   searchQuery.value = localKeyword.value.trim()
   portalStore.setBoardTab(categoryFilter.value)
-  await reload(0)
+  await syncQueryAndReload({ resetPage: true })
 }
 
 async function onCategoryChange() {
   portalStore.setBoardTab(categoryFilter.value)
-  await reload(0)
+  await syncQueryAndReload({ resetPage: true })
 }
 
 async function onReset() {
@@ -70,7 +101,7 @@ async function onReset() {
   categoryFilter.value = 'all'
   searchQuery.value = ''
   portalStore.setBoardTab('all')
-  await reload(0)
+  await syncQueryAndReload({ resetPage: true })
 }
 
 function openNotice(notice) {
@@ -96,20 +127,14 @@ function closeModal() {
 
 async function goPage(page) {
   if (page < 1 || page > totalPages.value || page === currentPage.value) return
-  isLoading.value = true
-  try {
-    await portalStore.goToNoticePage(page)
-  } finally {
-    isLoading.value = false
-  }
+  await syncQueryAndReload({ page })
 }
 
-onMounted(async () => {
-  localKeyword.value = searchQuery.value
-  categoryFilter.value = activeBoardTab.value || 'all'
-  portalStore.setBoardTab(categoryFilter.value)
-  await reload(0)
-})
+// Board search is local — do not inherit Header/global leftover keyword on enter
+categoryFilter.value = 'all'
+portalStore.setBoardTab('all')
+searchQuery.value = ''
+localKeyword.value = ''
 </script>
 
 <template>
@@ -119,7 +144,6 @@ onMounted(async () => {
       <p class="mt-1 text-sm text-slate-600">시정 공지·고시공고·보도자료를 한곳에서 확인할 수 있습니다.</p>
     </div>
 
-    <!-- 검색 · 필터 -->
     <section class="mb-4 border border-slate-200 bg-white p-4">
       <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="onSearch">
         <div class="min-w-0 flex-1">
@@ -178,7 +202,6 @@ onMounted(async () => {
       </p>
     </section>
 
-    <!-- 목록 테이블 -->
     <section class="border border-slate-200 bg-white">
       <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
         <h2 class="text-sm font-bold text-[#0F2942]">게시물 목록</h2>

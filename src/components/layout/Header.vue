@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Search } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
@@ -8,14 +8,18 @@ import SitemapModal from '../SitemapModal.vue'
 import AuthModal from '../AuthModal.vue'
 import AdminLoginModal from '../AdminLoginModal.vue'
 
+const route = useRoute()
 const router = useRouter()
 const portalStore = usePortalStore()
-const { searchQuery, fontScale, isAdmin, currentUser } = storeToRefs(portalStore)
+const { fontScale, isAdmin, currentUser } = storeToRefs(portalStore)
 
 const sitemapOpen = ref(false)
 const authOpen = ref(false)
 const authMode = ref('login')
 const adminLoginOpen = ref(false)
+
+/** Local only — does not drive /notices list until submit → home ?q= */
+const keywordInput = ref('')
 
 const gnbItems = [
   { label: '민원안내', to: '/minwon' },
@@ -24,6 +28,36 @@ const gnbItems = [
   { label: '시민참여', to: '/notices' },
   { label: '시청안내', to: '/' },
 ]
+
+const gnbActiveClass = 'bg-slate-800 underline decoration-2 underline-offset-4'
+
+function isGnbActive(item) {
+  const path = route.path
+
+  if (item.to === '/notices') {
+    // Shared /notices route: only 「시정소식」 shows active underline
+    return path === '/notices' && item.label === '시정소식'
+  }
+
+  if (item.to === '/') {
+    return path === '/' || route.name === 'home'
+  }
+
+  return path === item.to || path.startsWith(`${item.to}/`)
+}
+
+function syncKeywordFromRoute() {
+  if (route.name === 'home') {
+    const q = route.query.q
+    keywordInput.value = typeof q === 'string' ? q : Array.isArray(q) ? String(q[0] ?? '') : ''
+  }
+}
+
+watch(
+  () => [route.name, route.query.q],
+  () => syncKeywordFromRoute(),
+  { immediate: true },
+)
 
 function setFont(percent) {
   portalStore.setFontScale(percent)
@@ -43,21 +77,10 @@ async function onLogout() {
 }
 
 async function onSearch() {
-  const q = String(searchQuery.value ?? '').trim()
+  const q = String(keywordInput.value ?? '').trim()
   const query = q ? { q } : {}
-  const onHome = router.currentRoute.value.name === 'home'
-  const currentQ = String(router.currentRoute.value.query.q ?? '')
 
-  if (!onHome) {
-    await router.push({ name: 'home', query })
-    return
-  }
-
-  if (currentQ === q) {
-    await portalStore.loadNotices(0, { size: 5 })
-  } else {
-    await router.replace({ name: 'home', query })
-  }
+  await router.push({ name: 'home', query })
 
   requestAnimationFrame(() => {
     document.getElementById('notice-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -117,7 +140,6 @@ function onSitemapSelect({ columnTitle }) {
             </button>
           </div>
 
-          <!-- 로그인 상태: 마이페이지 · (관리자 대시보드) · 로그아웃 -->
           <template v-if="currentUser">
             <RouterLink
               to="/mypage"
@@ -141,7 +163,6 @@ function onSitemapSelect({ columnTitle }) {
             </button>
           </template>
 
-          <!-- 비로그인: 관리자 모드 · 로그인 · 회원가입 -->
           <template v-else>
             <button
               type="button"
@@ -181,7 +202,7 @@ function onSitemapSelect({ columnTitle }) {
           <label class="sr-only" for="gnb-search">통합검색</label>
           <input
             id="gnb-search"
-            v-model="searchQuery"
+            v-model="keywordInput"
             type="search"
             placeholder="검색어를 입력하세요"
             class="min-w-0 flex-1 border border-r-0 border-slate-300 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
@@ -201,12 +222,18 @@ function onSitemapSelect({ columnTitle }) {
       <ul class="mx-auto flex max-w-[1100px] divide-x divide-slate-700 px-4 text-sm font-semibold text-white">
         <li v-for="item in gnbItems" :key="item.label" class="flex-1">
           <RouterLink
+            v-slot="{ href, navigate }"
             :to="item.to"
-            class="flex h-11 w-full items-center justify-center hover:bg-slate-800"
-            :active-class="item.to === '/' ? '' : 'bg-slate-800 underline decoration-2 underline-offset-4'"
-            exact-active-class="bg-slate-800 underline decoration-2 underline-offset-4"
+            custom
           >
-            {{ item.label }}
+            <a
+              :href="href"
+              class="flex h-11 w-full items-center justify-center hover:bg-slate-800"
+              :class="isGnbActive(item) ? gnbActiveClass : ''"
+              @click="navigate"
+            >
+              {{ item.label }}
+            </a>
           </RouterLink>
         </li>
       </ul>

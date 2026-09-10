@@ -23,6 +23,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Parent-driven delete in-flight flag (따닥 방지) */
+  deleting: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close', 'navigate', 'edit', 'delete'])
@@ -66,7 +71,7 @@ function formatFileSize(value) {
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape') emit('close')
+  if (event.key === 'Escape' && !props.deleting) emit('close')
 }
 
 watch(
@@ -126,6 +131,11 @@ function goPrev() {
 function goNext() {
   if (nextNotice.value) emit('navigate', nextNotice.value)
 }
+
+function onDeleteClick() {
+  if (props.deleting) return
+  emit('delete', props.notice)
+}
 </script>
 
 <template>
@@ -138,7 +148,13 @@ function goNext() {
         aria-modal="true"
         :aria-label="notice.title"
       >
-        <button type="button" class="absolute inset-0 cursor-default" aria-label="배경 닫기" @click="emit('close')" />
+        <button
+          type="button"
+          class="absolute inset-0 cursor-default"
+          aria-label="배경 닫기"
+          :disabled="deleting"
+          @click="emit('close')"
+        />
 
         <div
           class="modal-panel relative z-10 w-full max-w-3xl overflow-hidden border border-[#0F2942]/80 bg-white shadow-[0_24px_64px_-12px_rgba(15,41,66,0.45)]"
@@ -269,17 +285,24 @@ function goNext() {
             <template v-if="isAdmin">
               <button
                 type="button"
-                class="border border-[#0F2942] bg-white px-6 py-2.5 text-sm font-bold text-[#0F2942] transition-colors hover:bg-[#0F2942] hover:text-white"
+                class="border border-[#0F2942] bg-white px-6 py-2.5 text-sm font-bold text-[#0F2942] transition-colors hover:bg-[#0F2942] hover:text-white disabled:opacity-60"
+                :disabled="deleting"
                 @click="emit('edit', notice)"
               >
                 수정
               </button>
               <button
                 type="button"
-                class="border border-red-800 bg-red-800 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-900"
-                @click="emit('delete', notice)"
+                class="inline-flex items-center gap-2 border border-red-800 bg-red-800 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-900 disabled:opacity-60"
+                :disabled="deleting"
+                @click="onDeleteClick"
               >
-                삭제
+                <span
+                  v-if="deleting"
+                  class="inline-block h-3.5 w-3.5 animate-spin border-2 border-white/40 border-t-white"
+                  aria-hidden="true"
+                />
+                {{ deleting ? '삭제 중…' : '삭제' }}
               </button>
             </template>
             <button

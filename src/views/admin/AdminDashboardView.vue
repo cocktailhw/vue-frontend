@@ -10,7 +10,6 @@ import {
   LogOut,
   Pencil,
   Plus,
-  Trash2,
   Users,
 } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
@@ -51,6 +50,7 @@ const formOpen = ref(false)
 const formMode = ref('create')
 const editingNotice = ref(null)
 const isSubmitting = ref(false)
+const deleting = ref(false)
 
 const toast = ref({ show: false, message: '' })
 let toastTimer = null
@@ -229,13 +229,17 @@ async function onFormSubmit(formData) {
 }
 
 async function onDeleteNotice(notice) {
+  if (deleting.value) return
   if (!confirm('정말 삭제하시겠습니까?')) return
+  deleting.value = true
   try {
     await portalStore.deleteNotice(notice.id)
     closeModal()
     showToast('게시물이 삭제되었습니다.')
   } catch {
     uiStore.showToast('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -457,7 +461,8 @@ onUnmounted(() => {
                     <div class="flex items-center justify-center gap-3">
                       <button
                         type="button"
-                        class="inline-flex items-center gap-0.5 text-xs text-slate-500 hover:text-slate-800 hover:underline"
+                        class="inline-flex items-center gap-0.5 text-xs text-slate-500 hover:text-slate-800 hover:underline disabled:opacity-40"
+                        :disabled="deleting"
                         @click="onRowEdit($event, row)"
                       >
                         <Pencil :size="12" />
@@ -465,10 +470,15 @@ onUnmounted(() => {
                       </button>
                       <button
                         type="button"
-                        class="inline-flex items-center gap-0.5 text-xs text-slate-500 hover:text-slate-800 hover:underline"
+                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 hover:underline disabled:opacity-40"
+                        :disabled="deleting"
                         @click="onRowDelete($event, row)"
                       >
-                        <Trash2 :size="12" />
+                        <span
+                          v-if="deleting"
+                          class="inline-block h-3 w-3 animate-spin border-2 border-slate-400 border-t-slate-700"
+                          aria-hidden="true"
+                        />
                         삭제
                       </button>
                     </div>
@@ -646,6 +656,7 @@ onUnmounted(() => {
       :notice="selectedNotice"
       :list="modalList"
       :is-admin="true"
+      :deleting="deleting"
       @close="closeModal"
       @navigate="navigateNotice"
       @edit="openEditForm"
