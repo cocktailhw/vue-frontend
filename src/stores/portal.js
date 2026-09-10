@@ -264,12 +264,27 @@ export const usePortalStore = defineStore('portal', () => {
     return formData
   }
 
-  function filterFallbackNotices() {
+  function matchesRouteCategory(itemCategory, routeCategory) {
+    if (!routeCategory || routeCategory === 'all') return true
+    const key = String(routeCategory).toUpperCase()
+    // 라우트 API 카테고리(NOTICE/INFO/PARTICIPATE) — 폴백 더미 데이터 매핑
+    if (key === 'NOTICE') return ['공지사항', '보도자료'].includes(itemCategory)
+    if (key === 'INFO') return itemCategory === '고시공고'
+    if (key === 'PARTICIPATE') return itemCategory === '공지사항'
+    return itemCategory === routeCategory
+  }
+
+  function filterFallbackNotices(overrideCategory) {
     const q = searchQuery.value.trim().toLowerCase()
-    const tab = activeBoardTab.value
+    const tab = overrideCategory ?? activeBoardTab.value
+    const isRouteCategory = ['NOTICE', 'INFO', 'PARTICIPATE'].includes(String(tab).toUpperCase())
     return FALLBACK_NOTICES.filter((item) => {
       const category = mapCategory(item.category, 0)
-      if (tab !== 'all' && category !== tab) return false
+      if (isRouteCategory) {
+        if (!matchesRouteCategory(category, tab)) return false
+      } else if (tab !== 'all' && category !== tab) {
+        return false
+      }
       if (!q) return true
       return (
         String(item.title).toLowerCase().includes(q) ||
@@ -289,9 +304,9 @@ export const usePortalStore = defineStore('portal', () => {
     }
   }
 
-  function applyFallbackPage(pageIndex = 0) {
+  function applyFallbackPage(pageIndex = 0, overrideCategory = undefined) {
     const size = pagination.value.size || DEFAULT_PAGE_SIZE
-    const filtered = filterFallbackNotices()
+    const filtered = filterFallbackNotices(overrideCategory)
     const totalElements = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalElements / size))
     const safePage = Math.min(Math.max(0, pageIndex), totalPages - 1)
@@ -325,8 +340,16 @@ export const usePortalStore = defineStore('portal', () => {
       size,
     }
 
-    if (activeBoardTab.value !== 'all') {
-      params.category = activeBoardTab.value
+    // options.category가 있으면 라우트 기준 카테고리 우선 (게시판 탭보다 상위)
+    let resolvedCategory = null
+    if (options.category != null && options.category !== '') {
+      resolvedCategory = options.category
+    } else if (activeBoardTab.value !== 'all') {
+      resolvedCategory = activeBoardTab.value
+    }
+
+    if (resolvedCategory) {
+      params.category = resolvedCategory
     }
 
     const keyword = searchQuery.value.trim()
@@ -339,7 +362,7 @@ export const usePortalStore = defineStore('portal', () => {
       const { items, page: pageMeta } = parsePagedModel(payload)
 
       if (!items.length && page > 0) {
-        await loadNotices(page - 1)
+        await loadNotices(page - 1, options)
         return
       }
 
@@ -348,9 +371,9 @@ export const usePortalStore = defineStore('portal', () => {
         return
       }
 
-      applyFallbackPage(page)
+      applyFallbackPage(page, resolvedCategory)
     } catch {
-      applyFallbackPage(page)
+      applyFallbackPage(page, resolvedCategory)
     }
   }
 

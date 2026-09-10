@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { ChevronLeft, ChevronRight, Filter, Search } from 'lucide-vue-next'
 import { BOARD_TABS } from '../../data/minwonQuickLinks'
 import { usePortalStore } from '../../stores/portal'
+import SubPageHeader from '../../components/layout/SubPageHeader.vue'
 import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
 
 const LIST_PAGE_SIZE = 10
@@ -25,23 +26,34 @@ const modalList = ref([])
 
 const categoryOptions = BOARD_TABS
 
+/** 라우트별 API category — 동일 데이터 중복 노출 방지 */
+function routeApiCategory() {
+  const path = route.path
+  if (path.includes('/info')) return 'INFO'
+  if (path.includes('/participate')) return 'PARTICIPATE'
+  return 'NOTICE'
+}
+
 const pageHeading = computed(() => {
   const path = route.path
   if (path.includes('/info')) {
     return {
       title: '정보공개',
-      description: '행복특별시의 투명한 행정 정보를 공개합니다.',
+      desc: '행복특별시의 투명한 행정 정보를 공개합니다.',
+      breadcrumb: ['홈', '정보공개', '행정정보 공개'],
     }
   }
   if (path.includes('/participate')) {
     return {
       title: '시민참여',
-      description: '시민 여러분의 소중한 의견을 듣습니다.',
+      desc: '시민 여러분의 소중한 의견을 듣습니다.',
+      breadcrumb: ['홈', '시민참여', '시민참여 게시판'],
     }
   }
   return {
     title: '시정소식',
-    description: '시정 공지·고시공고·보도자료를 한곳에서 확인할 수 있습니다.',
+    desc: '시정 공지·고시공고·보도자료를 한곳에서 확인할 수 있습니다.',
+    breadcrumb: ['홈', '시정소식', '전체 공지사항'],
   }
 })
 
@@ -73,7 +85,10 @@ async function loadFromRoute() {
   const page = pageFromRoute()
   isLoading.value = true
   try {
-    await portalStore.loadNotices(page - 1, { size: LIST_PAGE_SIZE })
+    await portalStore.loadNotices(page - 1, {
+      size: LIST_PAGE_SIZE,
+      category: routeApiCategory(),
+    })
   } finally {
     isLoading.value = false
   }
@@ -162,12 +177,14 @@ localKeyword.value = ''
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1100px] px-4 py-8 text-[#333333]">
-    <div class="mb-4 border-b-2 border-slate-800 pb-3">
-      <h1 class="text-xl font-bold text-[#0F2942]">{{ pageHeading.title }}</h1>
-      <p class="mt-1 text-sm text-slate-600">{{ pageHeading.description }}</p>
-    </div>
+  <div class="text-[#333333]">
+    <SubPageHeader
+      :title="pageHeading.title"
+      :desc="pageHeading.desc"
+      :breadcrumb="pageHeading.breadcrumb"
+    />
 
+    <main class="mx-auto max-w-[1100px] px-4 py-8">
     <section class="mb-4 border border-slate-200 bg-white p-4">
       <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="onSearch">
         <div class="min-w-0 flex-1">
@@ -332,5 +349,6 @@ localKeyword.value = ''
       @close="closeModal"
       @navigate="navigateNotice"
     />
-  </main>
+    </main>
+  </div>
 </template>

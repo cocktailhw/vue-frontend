@@ -52,7 +52,8 @@
 
 ### Placeholder View 실구현
 - [x] `NoticeListView` (`/notices`) — 전체 공지 목록 UI·페이징·상세 연동
-- [ ] `MinwonGuideView` (`/minwon`) — 종합 민원 안내·카테고리·절차 UI
+- [x] 서브페이지 공통 헤더(`SubPageHeader`) + 게시판 라우트별 `category` 분리 (`NOTICE`/`INFO`/`PARTICIPATE`)
+- [ ] `MinwonGuideView` (`/minwon`) — 종합 민원 안내·카테고리·절차 UI (헤더만 적용, 본문 placeholder)
 - [x] `MyPageView` (`/mypage`) — 프로필 카드 + 내 민원 API 연동
 - [x] `AdminDashboardView` (`/admin`) — 백오피스·공지 CRUD·민원 상태 관리
 

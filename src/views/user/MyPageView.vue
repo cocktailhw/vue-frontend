@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { BadgeCheck, ClipboardList, Shield, UserRound } from 'lucide-vue-next'
+import SubPageHeader from '../../components/layout/SubPageHeader.vue'
 import { usePortalStore } from '../../stores/portal'
 import { useUiStore } from '../../stores/ui'
 import { minwonStatusBadgeClass, minwonStatusLabel } from '../../utils/minwon'
@@ -59,12 +60,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="mx-auto max-w-[1100px] px-4 py-8 text-[#333333]">
-    <div class="mb-4 border-b-2 border-slate-800 pb-3">
-      <h1 class="text-xl font-bold text-[#0F2942]">마이페이지</h1>
-      <p class="mt-1 text-sm text-slate-600">로그인 계정 정보와 민원 신청 내역을 확인합니다.</p>
-    </div>
+  <div class="text-[#333333]">
+    <SubPageHeader
+      title="마이페이지"
+      desc="로그인 계정 정보와 민원 신청 내역을 확인합니다."
+      :breadcrumb="['홈', '마이페이지', '나의 활동 내역']"
+    />
 
+    <main class="mx-auto max-w-[1100px] px-4 py-8">
     <section class="mb-6 rounded-sm border border-slate-200 bg-white">
       <div class="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
         <UserRound :size="18" class="text-slate-700" />
@@ -165,5 +168,6 @@ onMounted(() => {
         </table>
       </div>
     </section>
-  </main>
+    </main>
+  </div>
 </template>
