@@ -16,6 +16,7 @@ import { BOARD_TABS, MINWON_QUICK_LINKS } from '../data/minwonQuickLinks'
 import { usePortalStore } from '../stores/portal'
 import NoticeDetailModal from '../components/NoticeDetailModal.vue'
 import MinwonDetailModal from '../components/MinwonDetailModal.vue'
+import AuthModal from '../components/AuthModal.vue'
 
 const HOME_PAGE_SIZE = 5
 
@@ -32,6 +33,9 @@ const modalList = ref([])
 
 const minwonOpen = ref(false)
 const selectedMinwon = ref(null)
+
+const authOpen = ref(false)
+const authMode = ref('login')
 
 const toast = ref({ show: false, message: '' })
 let toastTimer = null
@@ -136,6 +140,11 @@ function closeModal() {
 function openMinwon(item) {
   selectedMinwon.value = item
   minwonOpen.value = true
+}
+
+function onMinwonRequireAuth() {
+  authMode.value = 'login'
+  authOpen.value = true
 }
 
 async function goPage(page) {
@@ -341,7 +350,9 @@ onUnmounted(() => {
       :open="minwonOpen"
       :item="selectedMinwon"
       @close="minwonOpen = false"
+      @require-auth="onMinwonRequireAuth"
     />
+    <AuthModal :open="authOpen" :mode="authMode" @close="authOpen = false" />
   </main>
 </template>
 

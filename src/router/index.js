@@ -6,6 +6,7 @@ import MinwonGuideView from '../views/minwon/MinwonGuideView.vue'
 import MyPageView from '../views/user/MyPageView.vue'
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue'
 import { usePortalStore } from '../stores/portal'
+import { useUiStore } from '../stores/ui'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -51,16 +52,19 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const portalStore = usePortalStore()
+  const uiStore = useUiStore()
 
   if (to.meta.requiresAuth || to.meta.requiresAdmin) {
     await portalStore.restoreAdminSession()
   }
 
   if (to.meta.requiresAuth && !portalStore.currentUser) {
+    uiStore.showToast('로그인이 필요한 페이지입니다.', 'error')
     return { name: 'home' }
   }
 
   if (to.meta.requiresAdmin && !portalStore.isAdmin) {
+    uiStore.showToast('관리자 권한이 필요합니다.', 'error')
     return { name: 'home' }
   }
 

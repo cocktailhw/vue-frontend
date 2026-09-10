@@ -35,11 +35,11 @@ function openAuth(mode) {
 }
 
 function onAdminModeClick() {
-  if (isAdmin.value) {
-    portalStore.logoutAdmin()
-    return
-  }
   adminLoginOpen.value = true
+}
+
+async function onLogout() {
+  await portalStore.logoutAdmin()
 }
 
 async function onSearch() {
@@ -48,13 +48,11 @@ async function onSearch() {
   const onHome = router.currentRoute.value.name === 'home'
   const currentQ = String(router.currentRoute.value.query.q ?? '')
 
-  // 다른 라우트: 홈으로 위임 (HomeView onMounted / query watch가 로드)
   if (!onHome) {
     await router.push({ name: 'home', query })
     return
   }
 
-  // 홈에서 동일 검색어 재검색 → 직접 로드 / 검색어 변경 → URL 동기화 후 watch가 로드
   if (currentQ === q) {
     await portalStore.loadNotices(0, { size: 5 })
   } else {
@@ -118,31 +116,51 @@ function onSitemapSelect({ columnTitle }) {
               축소
             </button>
           </div>
-          <RouterLink
-            v-if="currentUser"
-            to="/mypage"
-            class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
-          >
-            마이페이지
-          </RouterLink>
-          <RouterLink
-            v-if="isAdmin"
-            to="/admin"
-            class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
-          >
-            관리자 대시보드
-          </RouterLink>
-          <button
-            type="button"
-            class="px-2 font-bold"
-            :class="isAdmin ? 'text-orange-700' : 'text-slate-600 hover:text-[#1E3A8A]'"
-            @click="onAdminModeClick"
-          >
-            {{ isAdmin ? '관리자 (로그아웃)' : '관리자 모드' }}
+
+          <!-- 로그인 상태: 마이페이지 · (관리자 대시보드) · 로그아웃 -->
+          <template v-if="currentUser">
+            <RouterLink
+              to="/mypage"
+              class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
+            >
+              마이페이지
+            </RouterLink>
+            <RouterLink
+              v-if="isAdmin"
+              to="/admin"
+              class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
+            >
+              관리자 대시보드
+            </RouterLink>
+            <button
+              type="button"
+              class="px-2 font-semibold text-slate-700 hover:text-[#1E3A8A]"
+              @click="onLogout"
+            >
+              로그아웃
+            </button>
+          </template>
+
+          <!-- 비로그인: 관리자 모드 · 로그인 · 회원가입 -->
+          <template v-else>
+            <button
+              type="button"
+              class="px-2 font-bold text-slate-600 hover:text-[#1E3A8A]"
+              @click="onAdminModeClick"
+            >
+              관리자 모드
+            </button>
+            <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('login')">
+              로그인
+            </button>
+            <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('signup')">
+              회원가입
+            </button>
+          </template>
+
+          <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="sitemapOpen = true">
+            사이트맵
           </button>
-          <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('login')">로그인</button>
-          <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="openAuth('signup')">회원가입</button>
-          <button type="button" class="px-2 hover:text-[#1E3A8A]" @click="sitemapOpen = true">사이트맵</button>
         </div>
       </div>
     </div>

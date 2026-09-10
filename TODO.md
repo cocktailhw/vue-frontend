@@ -67,6 +67,11 @@
 - [x] Header 검색 → `?q=` 홈 위임
 - [x] `alert()` → `ui.showToast` 치환
 
+### E2E UX 흐름 단절 패치
+- [x] Header 로그인/로그아웃 분기 (`currentUser`)
+- [x] 민원 신청 시 로그인 검사 + `require-auth` → AuthModal
+- [x] 보호 라우트 거절 시 Toast 안내
+
 ### API·기능 확장
 - [ ] 민원 실 API 연동 (현재 퀵메뉴는 정적 + 테스트 모달/`alert`)
 - [ ] 공지 외 게시판 유형(보도/고시 등) 전용 목록·필터 UX 고도화

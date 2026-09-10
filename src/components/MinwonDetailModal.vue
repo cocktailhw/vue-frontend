@@ -1,6 +1,8 @@
 <script setup>
-import { onUnmounted, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { X } from 'lucide-vue-next'
+import { usePortalStore } from '../stores/portal'
 import { useUiStore } from '../stores/ui'
 
 const props = defineProps({
@@ -11,19 +13,28 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'require-auth'])
+
+const portalStore = usePortalStore()
+const { currentUser } = storeToRefs(portalStore)
 const uiStore = useUiStore()
 
+const applying = ref(false)
+
 function onKeydown(event) {
-  if (event.key === 'Escape') emit('close')
+  if (event.key === 'Escape' && !applying.value) emit('close')
 }
 
 watch(
   () => props.open,
   (value) => {
     document.body.style.overflow = value ? 'hidden' : ''
-    if (value) window.addEventListener('keydown', onKeydown)
-    else window.removeEventListener('keydown', onKeydown)
+    if (value) {
+      applying.value = false
+      window.addEventListener('keydown', onKeydown)
+    } else {
+      window.removeEventListener('keydown', onKeydown)
+    }
   },
 )
 
@@ -33,11 +44,25 @@ onUnmounted(() => {
 })
 
 function onApply() {
-  uiStore.showToast(
-    `[신청 완료] "${props.item?.title}" 인터넷 발급/신청이 접수되었습니다. (테스트)`,
-    'success',
-  )
-  emit('close')
+  if (applying.value) return
+  applying.value = true
+
+  try {
+    if (!currentUser.value) {
+      uiStore.showToast('민원 신청을 위해 로그인이 필요합니다.', 'error')
+      emit('close')
+      emit('require-auth')
+      return
+    }
+
+    uiStore.showToast(
+      `[신청 완료] "${props.item?.title}" 인터넷 발급/신청이 접수되었습니다. (테스트)`,
+      'success',
+    )
+    emit('close')
+  } finally {
+    applying.value = false
+  }
 }
 </script>
 
@@ -50,14 +75,21 @@ function onApply() {
       aria-modal="true"
       :aria-label="item.title"
     >
-      <button type="button" class="absolute inset-0" aria-label="닫기" @click="emit('close')" />
+      <button
+        type="button"
+        class="absolute inset-0"
+        aria-label="닫기"
+        :disabled="applying"
+        @click="emit('close')"
+      />
       <div class="relative z-10 w-full max-w-lg border-2 border-[#0F2942] bg-white">
         <div class="flex items-center justify-between bg-[#0F2942] px-4 py-2.5 text-white">
           <h2 class="text-sm font-bold">민원 상세안내</h2>
           <button
             type="button"
-            class="inline-flex h-7 w-7 items-center justify-center border border-white/40"
+            class="inline-flex h-7 w-7 items-center justify-center border border-white/40 disabled:opacity-50"
             aria-label="닫기"
+            :disabled="applying"
             @click="emit('close')"
           >
             <X :size="16" />
@@ -91,17 +123,19 @@ function onApply() {
         <div class="flex justify-center gap-2 bg-slate-50 px-4 py-4">
           <button
             type="button"
-            class="border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold"
+            class="border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold disabled:opacity-60"
+            :disabled="applying"
             @click="emit('close')"
           >
             닫기
           </button>
           <button
             type="button"
-            class="border border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white"
+            class="border border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+            :disabled="applying"
             @click="onApply"
           >
-            인터넷 발급 / 신청하기
+            {{ applying ? '처리 중…' : '인터넷 발급 / 신청하기' }}
           </button>
         </div>
       </div>
