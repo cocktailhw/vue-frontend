@@ -1,11 +1,16 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { BadgeCheck, ClipboardList, Shield, UserRound } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
+import { useUiStore } from '../../stores/ui'
+import { minwonStatusBadgeClass, minwonStatusLabel } from '../../utils/minwon'
 
 const portalStore = usePortalStore()
-const { currentUser, isAdmin } = storeToRefs(portalStore)
+const uiStore = useUiStore()
+const { currentUser, isAdmin, myMinwons } = storeToRefs(portalStore)
+
+const isLoading = ref(false)
 
 const displayName = computed(() => {
   const user = currentUser.value
@@ -31,35 +36,26 @@ const userId = computed(() => {
 
 const email = computed(() => currentUser.value?.email || '등록된 이메일이 없습니다.')
 
-const myMinwonList = [
-  {
-    id: 'M-2026-0312',
-    title: '전입신고 관련 문의',
-    agency: '민원여권과',
-    appliedAt: '2026-09-02',
-    status: '완료',
-  },
-  {
-    id: 'M-2026-0288',
-    title: '건축물대장 열람 신청',
-    agency: '건축과',
-    appliedAt: '2026-08-28',
-    status: '처리중',
-  },
-  {
-    id: 'M-2026-0251',
-    title: '지방세 납부 확인서 발급',
-    agency: '세정과',
-    appliedAt: '2026-08-20',
-    status: '접수대기',
-  },
-]
-
-function statusBadgeClass(status) {
-  if (status === '완료') return 'border-emerald-700 bg-emerald-50 text-emerald-800'
-  if (status === '처리중') return 'border-sky-700 bg-sky-50 text-sky-800'
-  return 'border-amber-700 bg-amber-50 text-amber-900'
+function formatDate(value) {
+  if (!value) return '—'
+  const text = String(value)
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
+
+async function loadMyMinwons() {
+  isLoading.value = true
+  try {
+    await portalStore.fetchMyMinwons()
+  } catch {
+    uiStore.showToast('민원 내역을 불러오지 못했습니다.', 'error')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadMyMinwons()
+})
 </script>
 
 <template>
@@ -69,7 +65,6 @@ function statusBadgeClass(status) {
       <p class="mt-1 text-sm text-slate-600">로그인 계정 정보와 민원 신청 내역을 확인합니다.</p>
     </div>
 
-    <!-- 프로필 카드 -->
     <section class="mb-6 rounded-sm border border-slate-200 bg-white">
       <div class="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
         <UserRound :size="18" class="text-slate-700" />
@@ -115,17 +110,21 @@ function statusBadgeClass(status) {
       </div>
     </section>
 
-    <!-- 민원 신청 내역 (Mock) -->
     <section class="rounded-sm border border-slate-200 bg-white">
       <div class="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
         <div class="flex items-center gap-2">
           <ClipboardList :size="18" class="text-slate-700" />
           <h2 class="text-sm font-bold text-[#0F2942]">나의 민원 신청 내역</h2>
         </div>
-        <p class="text-xs text-slate-500">※ 현재는 Mock 데이터입니다.</p>
+        <p class="text-xs text-slate-500">총 {{ myMinwons.length }}건</p>
       </div>
 
-      <div class="overflow-x-auto">
+      <div v-if="isLoading" class="px-4 py-14 text-center text-sm text-slate-500">불러오는 중…</div>
+      <div v-else-if="!myMinwons.length" class="px-4 py-14 text-center text-sm text-slate-500">
+        신청한 민원이 없습니다.
+      </div>
+
+      <div v-else class="overflow-x-auto">
         <table class="w-full min-w-[40rem] table-fixed border-collapse text-left text-sm">
           <colgroup>
             <col class="w-32" />
@@ -145,20 +144,20 @@ function statusBadgeClass(status) {
           </thead>
           <tbody>
             <tr
-              v-for="row in myMinwonList"
+              v-for="row in myMinwons"
               :key="row.id"
               class="border-b border-slate-200 hover:bg-slate-50"
             >
               <td class="px-3 py-3 font-medium text-slate-700">{{ row.id }}</td>
               <td class="px-3 py-3 text-[#0F2942]">{{ row.title }}</td>
               <td class="px-3 py-3 text-slate-600">{{ row.agency }}</td>
-              <td class="px-3 py-3 text-slate-600">{{ row.appliedAt }}</td>
+              <td class="px-3 py-3 text-slate-600">{{ formatDate(row.appliedAt) }}</td>
               <td class="px-3 py-3 text-center">
                 <span
                   class="inline-block rounded-sm border px-2 py-0.5 text-xs font-semibold"
-                  :class="statusBadgeClass(row.status)"
+                  :class="minwonStatusBadgeClass(row.status)"
                 >
-                  {{ row.status }}
+                  {{ minwonStatusLabel(row.status) }}
                 </span>
               </td>
             </tr>

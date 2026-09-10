@@ -53,8 +53,8 @@
 ### Placeholder View 실구현
 - [x] `NoticeListView` (`/notices`) — 전체 공지 목록 UI·페이징·상세 연동
 - [ ] `MinwonGuideView` (`/minwon`) — 종합 민원 안내·카테고리·절차 UI
-- [x] `MyPageView` (`/mypage`) — 프로필 카드 + 민원 Mock 내역
-- [x] `AdminDashboardView` (`/admin`) — 백오피스 레이아웃·통계·공지 CRUD 이관
+- [x] `MyPageView` (`/mypage`) — 프로필 카드 + 내 민원 API 연동
+- [x] `AdminDashboardView` (`/admin`) — 백오피스·공지 CRUD·민원 상태 관리
 
 ### 홈 / CRUD 역할 분리
 - [x] 홈(`HomeView`)에서 관리자 글쓰기·수정·삭제 UI 제거 (조회 전용)
@@ -73,10 +73,9 @@
 - [x] 보호 라우트 거절 시 Toast 안내
 
 ### API·기능 확장
-- [ ] 민원 실 API 연동 (현재 퀵메뉴는 정적 + 테스트 모달/`alert`)
+- [x] 민원 실 API 연동 (`POST` / `GET my` / `GET` admin / `PUT status`)
 - [ ] 공지 외 게시판 유형(보도/고시 등) 전용 목록·필터 UX 고도화
 - [ ] 검색 결과를 홈 스크롤이 아닌 전용 결과 페이지로 분리할지 검토
-- [ ] 로그아웃 시 로그인/회원가입 버튼 숨김 또는 로그아웃 메뉴로 UX 정리
 - [ ] 보호 라우트 거부 시 홈 이동 대신 로그인 모달 유도
 
 ### 품질·운영

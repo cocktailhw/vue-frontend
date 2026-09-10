@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   ChevronLeft,
@@ -15,16 +15,32 @@ import {
 } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
 import { useUiStore } from '../../stores/ui'
+import {
+  MINWON_STATUS_OPTIONS,
+  minwonStatusBadgeClass,
+  minwonStatusLabel,
+} from '../../utils/minwon'
 import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
 import NoticeFormModal from '../../components/NoticeFormModal.vue'
 
 const LIST_PAGE_SIZE = 10
+const MINWON_PAGE_SIZE = 10
 
 const portalStore = usePortalStore()
 const uiStore = useUiStore()
-const { notices, isAdmin, currentUser, flashToast, pagination } = storeToRefs(portalStore)
+const {
+  notices,
+  isAdmin,
+  currentUser,
+  flashToast,
+  pagination,
+  adminMinwons,
+  adminMinwonPagination,
+} = storeToRefs(portalStore)
 
 const isLoading = ref(false)
+const minwonLoading = ref(false)
+const statusUpdatingId = ref(null)
 const activeMenu = ref('notices')
 
 const modalOpen = ref(false)
@@ -39,16 +55,39 @@ const isSubmitting = ref(false)
 const toast = ref({ show: false, message: '' })
 let toastTimer = null
 
-const stats = [
-  { id: 'posts', label: '총 게시물', value: '1,284', hint: '전체 누적', icon: FileText },
-  { id: 'visitors', label: '오늘 방문자', value: '3,152', hint: '금일 기준(Mock)', icon: Users },
-  { id: 'pending', label: '미처리 민원', value: '27', hint: '처리 대기(Mock)', icon: ClipboardList },
-]
-
 const sidebarMenus = [
   { id: 'dashboard', label: '대시보드 개요', icon: LayoutDashboard },
   { id: 'notices', label: '공지사항 관리', icon: FileText },
+  { id: 'minwons', label: '민원 관리', icon: ClipboardList },
 ]
+
+const waitingMinwonCount = computed(
+  () => adminMinwons.value.filter((row) => row.status === 'WAITING').length,
+)
+
+const stats = computed(() => [
+  {
+    id: 'posts',
+    label: '총 게시물',
+    value: String(pagination.value.totalElements ?? 0),
+    hint: '공지 전체',
+    icon: FileText,
+  },
+  {
+    id: 'visitors',
+    label: '오늘 방문자',
+    value: '3,152',
+    hint: '금일 기준(Mock)',
+    icon: Users,
+  },
+  {
+    id: 'pending',
+    label: '미처리 민원',
+    value: String(waitingMinwonCount.value),
+    hint: '목록 기준 접수대기',
+    icon: ClipboardList,
+  },
+])
 
 const displayName = computed(() => {
   const user = currentUser.value
@@ -56,19 +95,33 @@ const displayName = computed(() => {
   return user.name || user.username || user.userId || user.loginId || '관리자'
 })
 
+const pageTitle = computed(() => {
+  if (activeMenu.value === 'minwons') return '민원 관리'
+  if (activeMenu.value === 'notices') return '공지사항 관리'
+  return '대시보드 개요'
+})
+
 const currentPage = computed(() => pagination.value.page + 1)
 const pageSize = computed(() => pagination.value.size)
 const totalElements = computed(() => pagination.value.totalElements)
 const totalPages = computed(() => Math.max(1, pagination.value.totalPages))
 
-const pageNumbers = computed(() => {
-  const total = totalPages.value
-  const current = currentPage.value
+const pageNumbers = computed(() => buildPageNumbers(currentPage.value, totalPages.value))
+
+const minwonCurrentPage = computed(() => adminMinwonPagination.value.page + 1)
+const minwonPageSize = computed(() => adminMinwonPagination.value.size)
+const minwonTotalElements = computed(() => adminMinwonPagination.value.totalElements)
+const minwonTotalPages = computed(() => Math.max(1, adminMinwonPagination.value.totalPages))
+const minwonPageNumbers = computed(() =>
+  buildPageNumbers(minwonCurrentPage.value, minwonTotalPages.value),
+)
+
+function buildPageNumbers(current, total) {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
   if (current <= 3) return [1, 2, 3, 4, 5]
   if (current >= total - 2) return [total - 4, total - 3, total - 2, total - 1, total]
   return [current - 2, current - 1, current, current + 1, current + 2]
-})
+}
 
 function showToast(message) {
   toast.value = { show: true, message }
@@ -93,6 +146,26 @@ async function reload(pageIndex = 0) {
     isLoading.value = false
   }
 }
+
+async function reloadMinwons(pageIndex = 0) {
+  minwonLoading.value = true
+  try {
+    await portalStore.fetchAdminMinwons(pageIndex, { size: MINWON_PAGE_SIZE })
+  } catch {
+    uiStore.showToast('민원 목록을 불러오지 못했습니다.', 'error')
+  } finally {
+    minwonLoading.value = false
+  }
+}
+
+watch(activeMenu, async (menu) => {
+  if (menu === 'minwons' || menu === 'dashboard') {
+    await reloadMinwons(adminMinwonPagination.value.page || 0)
+  }
+  if (menu === 'notices' || menu === 'dashboard') {
+    if (!notices.value.length) await reload(0)
+  }
+})
 
 function openNotice(notice) {
   modalList.value = notices.value
@@ -186,6 +259,27 @@ async function goPage(page) {
   }
 }
 
+async function goMinwonPage(page) {
+  if (page < 1 || page > minwonTotalPages.value || page === minwonCurrentPage.value) return
+  await reloadMinwons(page - 1)
+}
+
+async function onMinwonStatusChange(row, event) {
+  const nextStatus = event.target.value
+  if (!row?.id || nextStatus === row.status) return
+
+  statusUpdatingId.value = row.id
+  try {
+    await portalStore.updateMinwonStatus(row.id, nextStatus)
+    showToast('민원 상태가 변경되었습니다.')
+  } catch {
+    uiStore.showToast('상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
+    event.target.value = row.status
+  } finally {
+    statusUpdatingId.value = null
+  }
+}
+
 async function onLogout() {
   await portalStore.logoutAdmin()
 }
@@ -196,6 +290,7 @@ onMounted(async () => {
     portalStore.clearFlashToast()
   }
   await reload(0)
+  await reloadMinwons(0)
 })
 
 onUnmounted(() => {
@@ -215,7 +310,6 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <!-- Sidebar -->
     <aside class="flex w-56 shrink-0 flex-col bg-[#0F172A] text-white">
       <div class="border-b border-slate-700 px-4 py-5">
         <p class="text-xs font-semibold tracking-wide text-slate-400">BACK OFFICE</p>
@@ -259,19 +353,15 @@ onUnmounted(() => {
       </div>
     </aside>
 
-    <!-- Main -->
     <div class="min-w-0 flex-1">
       <header class="border-b border-slate-200 bg-white px-6 py-4">
-        <h2 class="text-lg font-bold text-[#0F2942]">
-          {{ activeMenu === 'notices' ? '공지사항 관리' : '대시보드 개요' }}
-        </h2>
+        <h2 class="text-lg font-bold text-[#0F2942]">{{ pageTitle }}</h2>
         <p class="mt-0.5 text-sm text-slate-500">
           {{ isAdmin ? '관리자 권한이 확인되었습니다.' : '권한 확인 중…' }}
         </p>
       </header>
 
       <main class="space-y-6 p-6">
-        <!-- Stats -->
         <section class="grid gap-4 sm:grid-cols-3">
           <article
             v-for="card in stats"
@@ -293,8 +383,11 @@ onUnmounted(() => {
           </article>
         </section>
 
-        <!-- Notice grid -->
-        <section class="rounded-sm border border-slate-200 bg-white">
+        <!-- 공지사항 관리 -->
+        <section
+          v-if="activeMenu === 'notices' || activeMenu === 'dashboard'"
+          class="rounded-sm border border-slate-200 bg-white"
+        >
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
             <div>
               <h3 class="text-sm font-bold text-[#0F2942]">공지사항 관리</h3>
@@ -418,6 +511,128 @@ onUnmounted(() => {
               :disabled="currentPage >= totalPages"
               aria-label="다음 페이지"
               @click="goPage(currentPage + 1)"
+            >
+              <ChevronRight :size="16" />
+            </button>
+          </div>
+        </section>
+
+        <!-- 민원 관리 -->
+        <section
+          v-if="activeMenu === 'minwons' || activeMenu === 'dashboard'"
+          class="rounded-sm border border-slate-200 bg-white"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div>
+              <h3 class="text-sm font-bold text-[#0F2942]">민원 관리</h3>
+              <p class="mt-0.5 text-xs text-slate-500">
+                상태 변경 시 즉시 서버에 반영됩니다. (WAITING / IN_PROGRESS / COMPLETED)
+              </p>
+            </div>
+            <p class="text-xs text-slate-500">총 {{ minwonTotalElements }}건</p>
+          </div>
+
+          <div v-if="minwonLoading" class="px-4 py-14 text-center text-sm text-slate-500">
+            불러오는 중…
+          </div>
+          <div v-else-if="!adminMinwons.length" class="px-4 py-14 text-center text-sm text-slate-500">
+            등록된 민원이 없습니다.
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="w-full min-w-[52rem] table-fixed border-collapse text-left text-sm">
+              <colgroup>
+                <col class="w-28" />
+                <col />
+                <col class="w-28" />
+                <col class="w-28" />
+                <col class="w-28" />
+                <col class="w-40" />
+              </colgroup>
+              <thead>
+                <tr class="border-t-2 border-b border-slate-800 bg-slate-100 text-xs text-slate-800">
+                  <th class="px-3 py-2.5 font-bold">신청번호</th>
+                  <th class="px-3 py-2.5 font-bold">민원명</th>
+                  <th class="px-3 py-2.5 font-bold">신청자</th>
+                  <th class="px-3 py-2.5 font-bold">신청일</th>
+                  <th class="px-3 py-2.5 text-center font-bold">현재상태</th>
+                  <th class="px-3 py-2.5 text-center font-bold">상태 변경</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in adminMinwons"
+                  :key="row.id"
+                  class="border-b border-slate-200 hover:bg-slate-50"
+                >
+                  <td class="px-3 py-2.5 font-medium text-slate-700">{{ row.id }}</td>
+                  <td class="px-3 py-2.5">
+                    <span class="block truncate font-medium text-[#0F2942]">{{ row.title }}</span>
+                  </td>
+                  <td class="truncate px-3 py-2.5 text-slate-600">{{ row.applicant }}</td>
+                  <td class="truncate px-3 py-2.5 text-slate-600">{{ formatDate(row.appliedAt) }}</td>
+                  <td class="px-3 py-2.5 text-center">
+                    <span
+                      class="inline-block rounded-sm border px-2 py-0.5 text-xs font-semibold"
+                      :class="minwonStatusBadgeClass(row.status)"
+                    >
+                      {{ minwonStatusLabel(row.status) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2.5">
+                    <select
+                      class="w-full rounded-sm border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 disabled:bg-slate-100"
+                      :value="row.status"
+                      :disabled="statusUpdatingId === row.id"
+                      @change="onMinwonStatusChange(row, $event)"
+                    >
+                      <option
+                        v-for="opt in MINWON_STATUS_OPTIONS"
+                        :key="opt.value"
+                        :value="opt.value"
+                      >
+                        {{ opt.label }}
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            v-if="!minwonLoading && minwonTotalElements > 0"
+            class="flex items-center justify-center gap-1 border-t border-slate-200 bg-slate-50 px-3 py-3"
+          >
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
+              :disabled="minwonCurrentPage <= 1"
+              aria-label="이전 페이지"
+              @click="goMinwonPage(minwonCurrentPage - 1)"
+            >
+              <ChevronLeft :size="16" />
+            </button>
+            <button
+              v-for="page in minwonPageNumbers"
+              :key="`m-${page}`"
+              type="button"
+              class="inline-flex h-8 min-w-8 items-center justify-center rounded-sm border px-2 text-xs font-semibold"
+              :class="
+                page === minwonCurrentPage
+                  ? 'border-[#0F2942] bg-[#0F2942] text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+              "
+              @click="goMinwonPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
+              :disabled="minwonCurrentPage >= minwonTotalPages"
+              aria-label="다음 페이지"
+              @click="goMinwonPage(minwonCurrentPage + 1)"
             >
               <ChevronRight :size="16" />
             </button>

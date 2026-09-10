@@ -3,18 +3,20 @@ import { ref } from 'vue'
 import { FALLBACK_NOTICES } from '../data/fallbackNotices'
 import http, { clearLegacyAccessToken } from '../utils/http'
 import { parsePagedModel, sliceForPage } from '../utils/pagedModel'
+import { normalizeMinwon } from '../utils/minwon'
 import { useUiStore } from './ui'
 import router from '../router'
 
 const DEFAULT_PAGE_SIZE = 5
+const DEFAULT_MINWON_PAGE_SIZE = 10
 
 /** In-flight /auth/me restore — shared so concurrent callers hit the API once. */
 let sessionPromise = null
 
-function createDefaultPagination() {
+function createDefaultPagination(size = DEFAULT_PAGE_SIZE) {
   return {
     page: 0,
-    size: DEFAULT_PAGE_SIZE,
+    size,
     totalElements: 0,
     totalPages: 1,
   }
@@ -78,6 +80,9 @@ export const usePortalStore = defineStore('portal', () => {
   const currentUser = ref(null)
   const flashToast = ref('')
   const pagination = ref(createDefaultPagination())
+  const myMinwons = ref([])
+  const adminMinwons = ref([])
+  const adminMinwonPagination = ref(createDefaultPagination(DEFAULT_MINWON_PAGE_SIZE))
 
   const gnbBoardMap = {
     민원안내: { tab: 'all', title: '민원안내 · 전체 알림', scroll: 'minwon-quick' },
@@ -186,6 +191,9 @@ export const usePortalStore = defineStore('portal', () => {
     notices.value = []
     searchQuery.value = ''
     pagination.value = createDefaultPagination()
+    myMinwons.value = []
+    adminMinwons.value = []
+    adminMinwonPagination.value = createDefaultPagination(DEFAULT_MINWON_PAGE_SIZE)
     clearLegacyAccessToken()
     sessionPromise = null
 
@@ -374,6 +382,64 @@ export const usePortalStore = defineStore('portal', () => {
     if (target) target.viewCount += 1
   }
 
+  /** POST /v1/minwon — citizen application */
+  async function applyMinwon({ title, content }) {
+    return http.post('/v1/minwon', {
+      title: String(title ?? '').trim(),
+      content: String(content ?? '인터넷 자동 접수').trim() || '인터넷 자동 접수',
+    })
+  }
+
+  /** GET /v1/minwon/my — current user's applications */
+  async function fetchMyMinwons() {
+    const payload = await http.get('/v1/minwon/my')
+    let items = []
+    if (Array.isArray(payload)) {
+      items = payload
+    } else {
+      items = parsePagedModel(payload).items
+    }
+    myMinwons.value = items.map((item, index) => normalizeMinwon(item, index))
+    return myMinwons.value
+  }
+
+  /** GET /v1/minwon — admin paged list */
+  async function fetchAdminMinwons(pageIndex = 0, options = {}) {
+    if (options.size != null && Number(options.size) > 0) {
+      adminMinwonPagination.value = {
+        ...adminMinwonPagination.value,
+        size: Number(options.size),
+      }
+    }
+
+    const size = adminMinwonPagination.value.size || DEFAULT_MINWON_PAGE_SIZE
+    const page = pageIndex ?? adminMinwonPagination.value.page ?? 0
+
+    const payload = await http.get('/v1/minwon', {
+      params: { page, size },
+    })
+    const { items, page: pageMeta } = parsePagedModel(payload)
+
+    adminMinwons.value = items.map((item, index) =>
+      normalizeMinwon(item, pageMeta.number * (pageMeta.size || size) + index),
+    )
+    adminMinwonPagination.value = {
+      page: pageMeta.number,
+      size: pageMeta.size || size,
+      totalElements: pageMeta.totalElements,
+      totalPages: Math.max(1, pageMeta.totalPages),
+    }
+    return adminMinwons.value
+  }
+
+  /** PUT /v1/minwon/{id}/status */
+  async function updateMinwonStatus(id, status) {
+    await http.put(`/v1/minwon/${encodeURIComponent(id)}/status`, {
+      status: String(status ?? '').trim(),
+    })
+    await fetchAdminMinwons(adminMinwonPagination.value.page)
+  }
+
   return {
     notices,
     searchQuery,
@@ -385,6 +451,9 @@ export const usePortalStore = defineStore('portal', () => {
     currentUser,
     flashToast,
     pagination,
+    myMinwons,
+    adminMinwons,
+    adminMinwonPagination,
     setFontScale,
     showFlashToast,
     clearFlashToast,
@@ -401,5 +470,9 @@ export const usePortalStore = defineStore('portal', () => {
     updateNotice,
     deleteNotice,
     bumpViews,
+    applyMinwon,
+    fetchMyMinwons,
+    fetchAdminMinwons,
+    updateMinwonStatus,
   }
 })

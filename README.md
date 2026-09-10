@@ -97,9 +97,13 @@ Axios 베이스 URL은 기본 `/api`입니다. Vite 개발 서버는 `/api`를 `
 | 포털 | `PUT` | `/v1/portal/{id}` | 공지 수정 |
 | 포털 | `DELETE` | `/v1/portal/{id}` | 공지 삭제 |
 | 파일 | `GET` | `/v1/portal/files/download/{storedFileName}` | 첨부 다운로드 |
+| 민원 | `POST` | `/v1/minwon` | 민원 신청 `{ title, content }` |
+| 민원 | `GET` | `/v1/minwon/my` | 내 민원 목록 |
+| 민원 | `GET` | `/v1/minwon` | 관리자 전체 민원 (페이징) |
+| 민원 | `PUT` | `/v1/minwon/{id}/status` | 상태 변경 `{ status }` |
 
-목록 API 실패·빈 응답 시 `src/data/fallbackNotices.js` 폴백을 사용합니다.  
-민원 퀵메뉴는 아직 실 API 없이 정적 데이터 + 모달(테스트용)입니다.
+목록 API 실패·빈 응답 시 공지는 `src/data/fallbackNotices.js` 폴백을 사용합니다.  
+민원 퀵메뉴 카드는 정적 안내이며, 신청·조회·상태 변경은 실 API를 사용합니다.
 
 ---
 
@@ -181,9 +185,9 @@ docker run --rm -p 80:80 \
 
 - 홈 공지 게시판 (탭·검색·서버 페이징, 공공 포털형 UI) — **조회 전용**
 - `/notices` 전체 공지 목록 (검색·분류 필터·페이징·상세 모달)
-- `/admin` 관리자 백오피스 (통계 Mock + 공지 CRUD)
-- `/mypage` 마이페이지 (프로필 + 민원 Mock 내역)
-- 자주 찾는 민원 퀵메뉴 (정적)
+- `/admin` 관리자 백오피스 (통계 + 공지 CRUD + 민원 상태 관리)
+- `/mypage` 마이페이지 (프로필 + 내 민원 API)
+- 자주 찾는 민원 퀵메뉴 (안내 정적, 신청은 API)
 - 모달 기반 로그인/회원가입·관리자 로그인
 - 관리자 공지 작성/수정/삭제 및 첨부 업로드·다운로드 (`/admin`)
 - 글로벌 로딩·토스트 (`stores/ui.js`)

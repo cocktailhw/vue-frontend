@@ -43,23 +43,27 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
 })
 
-function onApply() {
+async function onApply() {
   if (applying.value) return
-  applying.value = true
 
-  try {
-    if (!currentUser.value) {
-      uiStore.showToast('민원 신청을 위해 로그인이 필요합니다.', 'error')
-      emit('close')
-      emit('require-auth')
-      return
-    }
-
-    uiStore.showToast(
-      `[신청 완료] "${props.item?.title}" 인터넷 발급/신청이 접수되었습니다. (테스트)`,
-      'success',
-    )
+  if (!currentUser.value) {
+    uiStore.showToast('민원 신청을 위해 로그인이 필요합니다.', 'error')
     emit('close')
+    emit('require-auth')
+    return
+  }
+
+  applying.value = true
+  try {
+    await portalStore.applyMinwon({
+      title: props.item?.title ?? '민원 신청',
+      content: '인터넷 자동 접수',
+    })
+    uiStore.showToast('접수가 완료되었습니다.', 'success')
+    emit('close')
+  } catch {
+    // Global axios interceptor already surfaces most errors via GlobalToast.
+    uiStore.showToast('민원 접수에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'error')
   } finally {
     applying.value = false
   }
@@ -131,11 +135,16 @@ function onApply() {
           </button>
           <button
             type="button"
-            class="border border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+            class="inline-flex items-center gap-2 border border-[#0F2942] bg-[#0F2942] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
             :disabled="applying"
             @click="onApply"
           >
-            {{ applying ? '처리 중…' : '인터넷 발급 / 신청하기' }}
+            <span
+              v-if="applying"
+              class="inline-block h-3.5 w-3.5 animate-spin border-2 border-white/40 border-t-white"
+              aria-hidden="true"
+            />
+            {{ applying ? '접수 중…' : '인터넷 발급 / 신청하기' }}
           </button>
         </div>
       </div>
