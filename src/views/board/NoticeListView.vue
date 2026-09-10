@@ -2,8 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ChevronLeft, ChevronRight, Filter, Search } from 'lucide-vue-next'
-import { BOARD_TABS } from '../../data/minwonQuickLinks'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-vue-next'
 import { usePortalStore } from '../../stores/portal'
 import SubPageHeader from '../../components/layout/SubPageHeader.vue'
 import NoticeDetailModal from '../../components/NoticeDetailModal.vue'
@@ -14,17 +13,14 @@ const BOARD_ROUTE_NAMES = new Set(['notices', 'info', 'participate'])
 const route = useRoute()
 const router = useRouter()
 const portalStore = usePortalStore()
-const { notices, searchQuery, activeBoardTab, pagination } = storeToRefs(portalStore)
+const { notices, searchQuery, pagination } = storeToRefs(portalStore)
 
 const isLoading = ref(false)
 const localKeyword = ref('')
-const categoryFilter = ref('all')
 
 const modalOpen = ref(false)
 const selectedNotice = ref(null)
 const modalList = ref([])
-
-const categoryOptions = BOARD_TABS
 
 /** 라우트별 API category — 동일 데이터 중복 노출 방지 */
 function routeApiCategory() {
@@ -103,10 +99,6 @@ watch(
   { immediate: true },
 )
 
-watch(activeBoardTab, (tab) => {
-  categoryFilter.value = tab
-})
-
 function formatDate(value) {
   if (!value) return '—'
   const text = String(value)
@@ -126,20 +118,12 @@ async function syncQueryAndReload({ page = 1, resetPage = false } = {}) {
 
 async function onSearch() {
   searchQuery.value = localKeyword.value.trim()
-  portalStore.setBoardTab(categoryFilter.value)
-  await syncQueryAndReload({ resetPage: true })
-}
-
-async function onCategoryChange() {
-  portalStore.setBoardTab(categoryFilter.value)
   await syncQueryAndReload({ resetPage: true })
 }
 
 async function onReset() {
   localKeyword.value = ''
-  categoryFilter.value = 'all'
   searchQuery.value = ''
-  portalStore.setBoardTab('all')
   await syncQueryAndReload({ resetPage: true })
 }
 
@@ -170,8 +154,6 @@ async function goPage(page) {
 }
 
 // Board-local search — do not inherit Header leftover keyword
-categoryFilter.value = 'all'
-portalStore.setBoardTab('all')
 searchQuery.value = ''
 localKeyword.value = ''
 </script>
@@ -185,170 +167,153 @@ localKeyword.value = ''
     />
 
     <main class="mx-auto max-w-[1100px] px-4 py-8">
-    <section class="mb-4 border border-slate-200 bg-white p-4">
-      <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="onSearch">
-        <div class="min-w-0 flex-1">
-          <label for="notice-keyword" class="mb-1 flex items-center gap-1 text-xs font-bold text-slate-700">
-            <Search :size="14" class="text-slate-500" />
-            검색어
-          </label>
-          <input
-            id="notice-keyword"
-            v-model="localKeyword"
-            type="search"
-            placeholder="제목, 부서, 내용 검색"
-            class="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-          />
+      <section class="mb-4 border border-slate-200 bg-white p-4">
+        <form class="flex flex-col gap-3 md:flex-row md:items-end" @submit.prevent="onSearch">
+          <div class="min-w-0 flex-1">
+            <label for="notice-keyword" class="mb-1 flex items-center gap-1 text-xs font-bold text-slate-700">
+              <Search :size="14" class="text-slate-500" />
+              검색어
+            </label>
+            <input
+              id="notice-keyword"
+              v-model="localKeyword"
+              type="search"
+              placeholder="제목, 부서, 내용 검색"
+              class="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
+            />
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="inline-flex items-center gap-1 rounded-sm border border-[#0F2942] bg-[#0F2942] px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              <Search :size="16" />
+              검색
+            </button>
+            <button
+              type="button"
+              class="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              @click="onReset"
+            >
+              초기화
+            </button>
+          </div>
+        </form>
+
+        <p v-if="searchQuery.trim()" class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
+          검색어 “{{ searchQuery.trim() }}” 결과
+          <span class="font-semibold text-slate-800">{{ totalElements }}</span>건
+          (페이지당 {{ pageSize }}건)
+        </p>
+      </section>
+
+      <section class="border border-slate-200 bg-white">
+        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+          <h2 class="text-sm font-bold text-[#0F2942]">게시물 목록</h2>
+          <p class="text-xs text-slate-500">총 {{ totalElements }}건</p>
         </div>
 
-        <div class="w-full md:w-44">
-          <label for="notice-category" class="mb-1 flex items-center gap-1 text-xs font-bold text-slate-700">
-            <Filter :size="14" class="text-slate-500" />
-            분류
-          </label>
-          <select
-            id="notice-category"
-            v-model="categoryFilter"
-            class="w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-            @change="onCategoryChange"
-          >
-            <option v-for="opt in categoryOptions" :key="opt.id" :value="opt.id">
-              {{ opt.label }}
-            </option>
-          </select>
+        <div v-if="isLoading" class="px-4 py-16 text-center text-sm text-slate-500">불러오는 중…</div>
+        <div v-else-if="!notices.length" class="px-4 py-16 text-center text-sm text-slate-500">
+          검색 조건에 맞는 게시물이 없습니다.
         </div>
 
-        <div class="flex gap-2">
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[44rem] table-fixed border-collapse text-left text-sm">
+            <colgroup>
+              <col class="w-16" />
+              <col class="w-28" />
+              <col />
+              <col class="w-32" />
+              <col class="w-28" />
+              <col class="w-20" />
+            </colgroup>
+            <thead>
+              <tr class="border-t-2 border-b border-slate-800 bg-slate-800 text-xs text-white">
+                <th class="px-3 py-3 text-center font-bold">번호</th>
+                <th class="px-3 py-3 font-bold">분류</th>
+                <th class="px-3 py-3 font-bold">제목</th>
+                <th class="px-3 py-3 font-bold">담당부서</th>
+                <th class="px-3 py-3 font-bold">작성일</th>
+                <th class="px-3 py-3 text-center font-bold">조회</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, idx) in notices"
+                :key="row.id"
+                class="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
+                @click="openNotice(row)"
+              >
+                <td class="px-3 py-3 text-center text-slate-600">
+                  {{ totalElements - (currentPage - 1) * pageSize - idx }}
+                </td>
+                <td class="px-3 py-3">
+                  <span
+                    class="inline-block max-w-full truncate rounded-sm border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700"
+                  >
+                    {{ row.category }}
+                  </span>
+                </td>
+                <td class="px-3 py-3">
+                  <span class="block truncate font-medium text-[#0F2942]">{{ row.title }}</span>
+                </td>
+                <td class="truncate px-3 py-3 text-slate-600">{{ row.department }}</td>
+                <td class="truncate px-3 py-3 text-slate-600">{{ formatDate(row.date) }}</td>
+                <td class="px-3 py-3 text-center text-slate-600">{{ row.viewCount }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          v-if="!isLoading && totalElements > 0"
+          class="flex items-center justify-center gap-1 border-t border-slate-200 bg-slate-50 px-3 py-3"
+        >
           <button
-            type="submit"
-            class="inline-flex items-center gap-1 rounded-sm border border-[#0F2942] bg-[#0F2942] px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            type="button"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
+            :disabled="currentPage <= 1"
+            aria-label="이전 페이지"
+            @click="goPage(currentPage - 1)"
           >
-            <Search :size="16" />
-            검색
+            <ChevronLeft :size="16" />
+          </button>
+          <button
+            v-for="page in pageNumbers"
+            :key="page"
+            type="button"
+            class="inline-flex h-8 min-w-8 items-center justify-center rounded-sm border px-2 text-xs font-semibold"
+            :class="
+              page === currentPage
+                ? 'border-[#0F2942] bg-[#0F2942] text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            "
+            @click="goPage(page)"
+          >
+            {{ page }}
           </button>
           <button
             type="button"
-            class="rounded-sm border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            @click="onReset"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
+            :disabled="currentPage >= totalPages"
+            aria-label="다음 페이지"
+            @click="goPage(currentPage + 1)"
           >
-            초기화
+            <ChevronRight :size="16" />
           </button>
         </div>
-      </form>
+      </section>
 
-      <p v-if="searchQuery.trim()" class="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
-        검색어 “{{ searchQuery.trim() }}” 결과
-        <span class="font-semibold text-slate-800">{{ totalElements }}</span>건
-        (페이지당 {{ pageSize }}건)
-      </p>
-    </section>
-
-    <section class="border border-slate-200 bg-white">
-      <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-        <h2 class="text-sm font-bold text-[#0F2942]">게시물 목록</h2>
-        <p class="text-xs text-slate-500">총 {{ totalElements }}건</p>
-      </div>
-
-      <div v-if="isLoading" class="px-4 py-16 text-center text-sm text-slate-500">불러오는 중…</div>
-      <div v-else-if="!notices.length" class="px-4 py-16 text-center text-sm text-slate-500">
-        검색 조건에 맞는 게시물이 없습니다.
-      </div>
-
-      <div v-else class="overflow-x-auto">
-        <table class="w-full min-w-[44rem] table-fixed border-collapse text-left text-sm">
-          <colgroup>
-            <col class="w-16" />
-            <col class="w-28" />
-            <col />
-            <col class="w-32" />
-            <col class="w-28" />
-            <col class="w-20" />
-          </colgroup>
-          <thead>
-            <tr class="border-t-2 border-b border-slate-800 bg-slate-800 text-xs text-white">
-              <th class="px-3 py-3 text-center font-bold">번호</th>
-              <th class="px-3 py-3 font-bold">분류</th>
-              <th class="px-3 py-3 font-bold">제목</th>
-              <th class="px-3 py-3 font-bold">담당부서</th>
-              <th class="px-3 py-3 font-bold">작성일</th>
-              <th class="px-3 py-3 text-center font-bold">조회</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, idx) in notices"
-              :key="row.id"
-              class="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
-              @click="openNotice(row)"
-            >
-              <td class="px-3 py-3 text-center text-slate-600">
-                {{ totalElements - (currentPage - 1) * pageSize - idx }}
-              </td>
-              <td class="px-3 py-3">
-                <span
-                  class="inline-block max-w-full truncate rounded-sm border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700"
-                >
-                  {{ row.category }}
-                </span>
-              </td>
-              <td class="px-3 py-3">
-                <span class="block truncate font-medium text-[#0F2942]">{{ row.title }}</span>
-              </td>
-              <td class="truncate px-3 py-3 text-slate-600">{{ row.department }}</td>
-              <td class="truncate px-3 py-3 text-slate-600">{{ formatDate(row.date) }}</td>
-              <td class="px-3 py-3 text-center text-slate-600">{{ row.viewCount }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div
-        v-if="!isLoading && totalElements > 0"
-        class="flex items-center justify-center gap-1 border-t border-slate-200 bg-slate-50 px-3 py-3"
-      >
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
-          :disabled="currentPage <= 1"
-          aria-label="이전 페이지"
-          @click="goPage(currentPage - 1)"
-        >
-          <ChevronLeft :size="16" />
-        </button>
-        <button
-          v-for="page in pageNumbers"
-          :key="page"
-          type="button"
-          class="inline-flex h-8 min-w-8 items-center justify-center rounded-sm border px-2 text-xs font-semibold"
-          :class="
-            page === currentPage
-              ? 'border-[#0F2942] bg-[#0F2942] text-white'
-              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-          "
-          @click="goPage(page)"
-        >
-          {{ page }}
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-slate-300 bg-white disabled:opacity-40"
-          :disabled="currentPage >= totalPages"
-          aria-label="다음 페이지"
-          @click="goPage(currentPage + 1)"
-        >
-          <ChevronRight :size="16" />
-        </button>
-      </div>
-    </section>
-
-    <NoticeDetailModal
-      :open="modalOpen"
-      :notice="selectedNotice"
-      :list="modalList"
-      :is-admin="false"
-      @close="closeModal"
-      @navigate="navigateNotice"
-    />
+      <NoticeDetailModal
+        :open="modalOpen"
+        :notice="selectedNotice"
+        :list="modalList"
+        :is-admin="false"
+        @close="closeModal"
+        @navigate="navigateNotice"
+      />
     </main>
   </div>
 </template>

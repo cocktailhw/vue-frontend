@@ -92,7 +92,7 @@ Axios 베이스 URL은 기본 `/api`입니다. Vite 개발 서버는 `/api`를 `
 | 인증 | `POST` | `/v1/auth/signup` | 회원가입 |
 | 인증 | `POST` | `/v1/auth/logout` | 로그아웃 |
 | 인증 | `GET` | `/v1/auth/me` | 세션·권한 복원 |
-| 포털 | `GET` | `/v1/portal` | 공지 목록 (페이징·카테고리·키워드) |
+| 포털 | `GET` | `/v1/portal` | 공지 목록 (`type`, 선택 `category=NOTICE\|INFO\|PARTICIPATE`, `keyword`, 페이징) |
 | 포털 | `POST` | `/v1/portal` | 공지 등록 (`FormData`: JSON `data` + 선택 `file`) |
 | 포털 | `PUT` | `/v1/portal/{id}` | 공지 수정 |
 | 포털 | `DELETE` | `/v1/portal/{id}` | 공지 삭제 |

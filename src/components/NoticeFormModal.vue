@@ -21,11 +21,24 @@ const typeOptions = [{ value: 'NOTICE', label: 'NOTICE (공지사항)' }]
 
 const statusOptions = ['접수중', '마감', '-']
 
-const categoryOptions = ['공지사항', '고시공고', '보도자료']
+const categoryOptions = [
+  { value: 'NOTICE', label: '시정소식 (NOTICE)' },
+  { value: 'INFO', label: '정보공개 (INFO)' },
+  { value: 'PARTICIPATE', label: '시민참여 (PARTICIPATE)' },
+]
+
+function toApiCategory(raw) {
+  const text = String(raw ?? '').trim()
+  const upper = text.toUpperCase()
+  if (upper === 'NOTICE' || upper === 'INFO' || upper === 'PARTICIPATE') return upper
+  if (/정보공개|고시|공고/i.test(text)) return 'INFO'
+  if (/시민참여/i.test(text)) return 'PARTICIPATE'
+  return 'NOTICE'
+}
 
 const form = ref({
   type: 'NOTICE',
-  category: '공지사항',
+  category: 'NOTICE',
   title: '',
   department: '',
   status: '-',
@@ -52,7 +65,7 @@ function resetForm() {
   if (props.mode === 'edit' && props.notice) {
     form.value = {
       type: 'NOTICE',
-      category: props.notice.category || '공지사항',
+      category: toApiCategory(props.notice.category ?? props.notice.boardCategory),
       title: props.notice.title || '',
       department: props.notice.department || '',
       status: props.notice.status || '-',
@@ -62,7 +75,7 @@ function resetForm() {
   } else {
     form.value = {
       type: 'NOTICE',
-      category: '공지사항',
+      category: 'NOTICE',
       title: '',
       department: '',
       status: '-',
@@ -190,14 +203,16 @@ function onSubmit() {
               </select>
             </div>
             <div>
-              <label class="mb-1 block font-bold" for="form-category">게시 분류</label>
+              <label class="mb-1 block font-bold" for="form-category">게시판 분류</label>
               <select
                 id="form-category"
                 v-model="form.category"
                 class="w-full border border-slate-300 px-3 py-2 disabled:bg-slate-100"
                 :disabled="isSubmitting"
               >
-                <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+                <option v-for="cat in categoryOptions" :key="cat.value" :value="cat.value">
+                  {{ cat.label }}
+                </option>
               </select>
             </div>
           </div>

@@ -24,9 +24,13 @@ function createDefaultPagination(size = DEFAULT_PAGE_SIZE) {
 
 function mapCategory(raw, index) {
   const text = String(raw ?? '').trim()
+  const upper = text.toUpperCase()
+  if (upper === 'NOTICE') return '시정소식'
+  if (upper === 'INFO') return '정보공개'
+  if (upper === 'PARTICIPATE') return '시민참여'
   if (/보도|시정소식|뉴스|press/i.test(text)) return '보도자료'
-  if (/고시|공고|입찰|입법/i.test(text)) return '고시공고'
-  if (/공지|안내|일반|notice/i.test(text)) return '공지사항'
+  if (/고시|공고|입찰|입법|정보공개/i.test(text)) return '고시공고'
+  if (/공지|안내|일반|notice|시민참여/i.test(text)) return '공지사항'
   const cycle = ['공지사항', '보도자료', '고시공고']
   return cycle[index % cycle.length]
 }
@@ -267,11 +271,13 @@ export const usePortalStore = defineStore('portal', () => {
   function matchesRouteCategory(itemCategory, routeCategory) {
     if (!routeCategory || routeCategory === 'all') return true
     const key = String(routeCategory).toUpperCase()
-    // 라우트 API 카테고리(NOTICE/INFO/PARTICIPATE) — 폴백 더미 데이터 매핑
-    if (key === 'NOTICE') return ['공지사항', '보도자료'].includes(itemCategory)
-    if (key === 'INFO') return itemCategory === '고시공고'
-    if (key === 'PARTICIPATE') return itemCategory === '공지사항'
-    return itemCategory === routeCategory
+    const raw = String(itemCategory ?? '')
+    const upper = raw.toUpperCase()
+    if (key === upper) return true
+    if (key === 'NOTICE') return ['시정소식', '공지사항', '보도자료'].includes(raw)
+    if (key === 'INFO') return ['정보공개', '고시공고'].includes(raw)
+    if (key === 'PARTICIPATE') return ['시민참여'].includes(raw)
+    return raw === routeCategory
   }
 
   function filterFallbackNotices(overrideCategory) {
